@@ -1,0 +1,67 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &6793563894539059767
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 454406385002193575}
+  - component: {fileID: 8912116413562154448}
+  - component: {fileID: 6024040475054448602}
+  m_Layer: 0
+  m_Name: UpAndDownLoopAnimator
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &454406385002193575
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6793563894539059767}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8912116413562154448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6793563894539059767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 55aa8db38d0a1f74a9c5e074f01c2cdf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  objTranforms: []
+  maxHeight: 0.2
+  minHeight: 0
+  moveSpeed: 0.5
+  moveTogether: 1
+--- !u!114 &6024040475054448602
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6793563894539059767}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9f8688e3711d6540b17c5f118152a3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  displayName: "\u4E0A\u4E0B\u52A8\u753B"
+  description: "\u5BF9\u7269\u4F53\u8FDB\u884C\u4E0A\u4E0B\u5FAA\u73AF\u79FB\u52A8,\u5F62\u6210\u52A8\u753B\u6548\u679C\n"
+  sortOrder: 0

@@ -1,0 +1,86 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e263257f0b28f2b4797879de893f0d84, type: 3}
+  m_Name: EggMilkTirgger
+  m_EditorClassIdentifier: 
+  entryNodeGuid: 31af4d68-61e5-44d8-a6b3-7d3c8a09d53d
+  nodes:
+  - guid: 31af4d68-61e5-44d8-a6b3-7d3c8a09d53d
+    type: 0
+    editorRect:
+      serializedVersion: 2
+      x: 200
+      y: 200
+      width: 76
+      height: 77
+    targetSceneObjectId: 
+    loopParams:
+      count: 3
+      foreverLoop: 0
+    targetGraphAsset: {fileID: 0}
+    batchRootSceneObjectId: 
+  - guid: 78463f31-aa3e-4f62-9ed3-df3dac63137d
+    type: 3
+    editorRect:
+      serializedVersion: 2
+      x: 304
+      y: 200
+      width: 126
+      height: 77
+    targetSceneObjectId: 
+    loopParams:
+      count: 3
+      foreverLoop: 0
+    targetGraphAsset: {fileID: 0}
+    batchRootSceneObjectId: 
+  - guid: 0dfd400f-47ab-4988-a13d-88df23feecd2
+    type: 8
+    editorRect:
+      serializedVersion: 2
+      x: 566
+      y: -24
+      width: 332
+      height: 137
+    targetSceneObjectId: 
+    loopParams:
+      count: 3
+      foreverLoop: 0
+    targetGraphAsset: {fileID: 0}
+    batchRootSceneObjectId: 9a8183f709b34f7ca4dc1135f9798c0f
+  - guid: 7b4fd898-f4b4-4eba-a6f0-88958bad02a4
+    type: 8
+    editorRect:
+      serializedVersion: 2
+      x: 583
+      y: 280
+      width: 332
+      height: 137
+    targetSceneObjectId: 
+    loopParams:
+      count: 3
+      foreverLoop: 0
+    targetGraphAsset: {fileID: 0}
+    batchRootSceneObjectId: 0dbe1558e0b140298b4751950eadad80
+  edges:
+  - fromNodeGuid: 31af4d68-61e5-44d8-a6b3-7d3c8a09d53d
+    toNodeGuid: 78463f31-aa3e-4f62-9ed3-df3dac63137d
+    portName: Next
+    inputPortName: Enter
+  - fromNodeGuid: 78463f31-aa3e-4f62-9ed3-df3dac63137d
+    toNodeGuid: 0dfd400f-47ab-4988-a13d-88df23feecd2
+    portName: Next
+    inputPortName: Enter
+  - fromNodeGuid: 78463f31-aa3e-4f62-9ed3-df3dac63137d
+    toNodeGuid: 7b4fd898-f4b4-4eba-a6f0-88958bad02a4
+    portName: Next
+    inputPortName: Enter
+  resources: []

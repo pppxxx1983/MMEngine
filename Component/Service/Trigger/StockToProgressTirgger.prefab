@@ -1,0 +1,68 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &5780184685869241952
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 7622061244401701625}
+  - component: {fileID: -5274788205289254373}
+  - component: {fileID: 310909188842369220}
+  m_Layer: 0
+  m_Name: StockToProgressTirgger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &7622061244401701625
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5780184685869241952}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &-5274788205289254373
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5780184685869241952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 16dd62e2303f45b45aab8933d499b699, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trigger1:
+  - {fileID: 0}
+  trigger2:
+  - {fileID: 0}
+  fromStock: {fileID: 0}
+  toProgress: {fileID: 0}
+--- !u!114 &310909188842369220
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5780184685869241952}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9f8688e3711d6540b17c5f118152a3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  displayName: "\u78B0\u649E\u8BBE\u7F6E\u8FDB\u5EA6"
+  description: "\u78B0\u649E\u540E\u9500\u6BC1\u5BF9\u8C61,\u8BBE\u7F6E\u8FDB\u5EA6\u6761"
+  sortOrder: 0

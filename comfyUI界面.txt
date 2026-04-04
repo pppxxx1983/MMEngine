@@ -1,0 +1,101 @@
+Unity 可视化节点编辑插件（类ComfyUI）开发规范文档（供codex开发）
+
+一、基础配置
+
+- 代码路径：所有插件代码统一存放于 PlayableFramework/Plugin 目录，禁止随意更改路径，确保工程目录结构规范。
+
+- 架构要求：严格遵循“界面绘制与业务逻辑完全分离”原则，界面渲染、逻辑处理、数据管理需拆分到对应类，禁止耦合。
+
+- 关联组件：选中挂载Graph.cs组件的对象时，若插件界面已打开，需自动加载该对象关联的ComfyGraph资源，并完整显示节点画布及所有关联数据；切换选中不同Graph对象时，需先清空当前插件界面所有节点、连线及缓存数据，再加载新Graph的相关数据，避免数据混淆。
+
+- 编辑器模式限制：所有核心操作（节点创建、GameObject同步创建、连线创建/修改、Hierarchy父子关系变更等），仅在Unity编辑器模式下可执行，运行时禁止触发上述操作，确保操作安全性。
+
+- 窗口资源设置：插件窗口需新增asset资源对象目标点设置功能，提供可视化输入框/选择框，支持手动设置ComfyGraph资源的目标对象，用于关联节点画布与对应资源。
+
+- Hierarchy选择逻辑：选中Hierarchy中挂载Graph.cs组件的对象时，先校验该对象的ComfyGraph资源是否已赋值；若资源对象不为null，同步修改插件界面中ComfyGraph的资源，加载对应节点、连线及层级数据；若资源对象为null，插件界面不执行任何操作，保持当前空白状态或原有缓存（不加载、不修改任何数据）。
+
+- 双向选中同步：针对通过ComfyGraph创建的节点对应的GameObject，实现双向选中联动：在Graph界面选中节点时，自动同步选中Hierarchy中该节点对应的GameObject，保持原操作焦点不变（焦点仍在Graph界面节点上）；
+
+- 在Hierarchy选中该类GameObject时，自动同步选中Graph界面中对应的节点，保持原操作焦点不变（焦点仍在Hierarchy的GameObject上）；
+
+- 联动仅针对通过ComfyGraph创建的节点及对应GameObject，非该插件创建的对象不触发此联动逻辑。
+
+二、界面与交互操作
+
+- 快捷键：Ctrl+S 触发节点所有资源数据保存，需确保保存操作同步执行，无延迟、无遗漏。
+
+- 画布操作：鼠标中键按下、鼠标右键按住，均需实现画布平移功能，两种操作的平移灵敏度保持一致，无卡顿、无偏移。
+
+- 节点拖动：仅节点的标题栏和背景板区域可响应拖动操作，节点内其他控件（连接点、文本、Inspector控件等）禁止响应拖动，避免误操作。
+
+三、节点创建与GameObject同步
+
+- 节点创建：右键点击主界面画布（仅编辑器模式可操作），需自动扫描Assets\PlayableFramework\Lib\Scripts\Service文件夹下所有继承Service的类，生成清晰的节点创建菜单；点击菜单中的类，需快速创建对应节点，同时触发GameObject创建逻辑。
+
+- GameObject同步：创建节点的同时（仅编辑器模式可操作），需在当前选中的Graph对象下自动生成对应GameObject，将右键菜单中选中的、继承Service的类作为组件挂载到该GameObject上；GameObject命名需唯一（建议格式：“节点类名_唯一ID”），避免Hierarchy中出现同名对象，防止层级同步、组件挂载及数据关联异常。
+
+- 节点删除：删除画布中的节点时，需同步执行以下操作：删除该节点对应的GameObject、删除该节点所有关联的连线、清空该节点及关联节点Service类中对应的列表数据、更新受影响节点的Hierarchy层级关系，确保无残留数据。
+
+四、连接点规则
+
+- 标签对应：严格按照以下规则解析标签并绘制连接点：Service基类的[Enter]→左侧方形连接点（主输入）、[Next]→右侧方形连接点（主输出）；Assets\PlayableFramework\Lib\Scripts\Service文件夹下、继承Service的实际业务逻辑类的[Input]→左侧圆形连接点（可多个，按顺序排列在[Enter]下方）、[Output]→右侧圆形连接点（仅允许1个，不可多设）。
+
+- 样式规范：连接点未连接时，统一显示灰色；已连接时，[Enter]/[Next]（方形）显示蓝色，[Input]/[Output]（圆形）显示黄色，颜色色值统一，无偏差。
+
+- 文本展示：左侧连接点（[Enter]/[Input]）需先绘制连接点，再显示对应变量类型文本；右侧连接点（[Next]/[Output]）需先显示对应变量类型文本，再绘制连接点，文本位置与连接点对齐，清晰可辨。
+
+五、连线规则（仅编辑器模式可执行）
+
+- 连接限制：仅允许左侧连接点与右侧连接点建立连接，禁止同一节点的左点与右点连接，需增加校验逻辑，拦截非法连接操作。
+
+- 连接方向：支持从左侧连接点拖线到右侧连接点，也支持从右侧连接点拖线到左侧连接点，两种方向的连接逻辑一致，均需同步触发后续层级及列表更新。
+
+- 连线操作：选中连线时，连线需自动加粗（加粗幅度明显，与未选中状态区分清晰）；按下Delete键时，需立即删除选中连线，并同步执行层级关系重置、Service列表数据移除操作；禁止同一对连接点（如A节点[Next]与B节点[Enter]）重复连线，需增加重复连接校验，避免重复添加列表数据、重复触发层级变更。
+
+六、Hierarchy层级同步（核心，仅编辑器模式可执行）
+
+- 基础层级：节点无任何[Enter]连接点连线时，其对应的GameObject需作为Graph对象的一级子节点，不可嵌套在其他节点GameObject下。
+
+- 连线关联层级：当A节点[Next]与B节点[Enter]建立连线时，B节点对应的GameObject需自动设置为A节点对应GameObject的子节点；需确保同一B节点不可同时作为多个A节点的子节点，增加唯一性校验，避免层级混乱。
+
+- 层级更新：连线断开或修改时，需自动重置/更新对应节点的Hierarchy层级关系；断开连线后，需校验该节点是否还有其他[Enter]连接点连线，仅当无任何[Enter]连线时，才将其GameObject恢复为Graph对象的一级子节点。
+
+- Graph对象清理：当Graph对象被删除时，需自动删除其下所有节点对应的GameObject、插件界面所有节点与连线，清空所有相关Service类的列表数据，避免残留资源占用及数据异常。
+
+七、Service列表自动赋值（核心，仅编辑器模式同步更新）
+
+- 固定字段与标签职责：Service基类仅负责[Enter]、[Next]标签及对应字段的定义，不可修改字段名、标签及类型，固定字段为：[Enter] public List<Service> _enters = new List<Service>(); [Next] public List<Service> _next = new List<Service>();；Assets\PlayableFramework\Lib\Scripts\Service文件夹下、继承自Service的实际业务逻辑类，负责[Input]、[Output]标签及对应业务逻辑的实现。
+
+- 扩展字段职责：[Input]、[Output]标签及对应扩展字段，由Assets\PlayableFramework\Lib\Scripts\Service文件夹下、继承Service的实际业务逻辑类定义，用于适配自身业务的输入输出需求，与Service基类的[Enter]/[Next]列表区分，避免数据混淆；扩展字段标准格式为：[Input] public List<Service> _inputs = new List<Service>(); [Output] public List<Service> _outputs = new List<Service>()。
+
+- 赋值规则：
+                  A节点[Next]与B节点[Enter]连线：A._next.Add(B)、B._enters.Add(A)
+
+- A节点[Output]与B节点[Input]连线：A._outputs.Add(B)、B._inputs.Add(A)
+
+- 移除规则：
+                  A节点[Next]与B节点[Enter]连线断开：A._next.Remove(B)、B._enters.Remove(A)
+
+- A节点[Output]与B节点[Input]连线断开：A._outputs.Remove(B)、B._inputs.Remove(A)
+
+- 实时性要求：所有连线的创建、断开、修改操作（仅编辑器模式可执行），需立即同步更新对应Service类的列表数据，无延迟；保存/加载数据时，列表数据需与节点、连线、层级数据一同持久化，确保编辑器内与运行时数据完全一致。
+
+八、数据保存
+
+- 保存内容：需完整保存以下数据，无遗漏：节点位置、节点关联数据、连线状态（连接点对应关系）、Hierarchy层级关系、Service类中_enters/_next/_inputs/_outputs列表数据。
+
+- 触发方式：支持Ctrl+S快捷键触发保存，同时需确保保存操作与Graph组件绑定，不同Graph对象的数据分开保存，互不干扰；保存过程需稳定，避免数据丢失、损坏。
+
+九、核心类分工（必遵循，确保代码解耦）
+
+- 节点界面绘制类：仅负责节点UI渲染、连接点绘制、连线绘制、文本显示，不处理任何业务逻辑。
+
+- 节点管理类：负责节点的创建、删除、数据管理，协调节点与GameObject的同步，触发层级及列表数据更新，同时负责Graph界面节点与Hierarchy对应GameObject的双向选中同步逻辑，确保选中状态联动且焦点不变。
+
+- 层级同步类：专门处理连线与Hierarchy父子关系的绑定、更新、重置，确保层级与连线状态实时同步。
+
+- 连线数据同步类：专门处理Service类中_enters/_next/_inputs/_outputs列表的自动添加、移除，确保列表数据与连线状态一致。
+
+- 输入监控类：统一处理鼠标（按下、抬起、拖拽）、键盘（快捷键、Delete键）等输入事件，将事件分发到对应处理类，不直接处理业务逻辑。
+
+- 数据持久化类：负责所有数据（节点、连线、层级、列表）的序列化、保存、加载，确保数据读写稳定、无异常。

@@ -1,0 +1,70 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &757367224817446189
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1658502340822495062}
+  - component: {fileID: 996024725133367683}
+  - component: {fileID: 7697758961096091631}
+  m_Layer: 0
+  m_Name: SetColorTirgger
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1658502340822495062
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757367224817446189}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &996024725133367683
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757367224817446189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bbf8cd2cfd6d26e4cb8891b69649013c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  trigger1:
+  - {fileID: 0}
+  trigger2:
+  - {fileID: 0}
+  targets:
+  - {fileID: 0}
+  noCollider: {r: 1, g: 1, b: 1, a: 1}
+  collider: {r: 0, g: 225, b: 255, a: 1}
+--- !u!114 &7697758961096091631
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 757367224817446189}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c9f8688e3711d6540b17c5f118152a3d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  displayName: "\u78B0\u649E\u6539\u8272"
+  description: "\u78B0\u649E\u548C\u4E0D\u78B0\u649E,\u4E24\u79CD\u989C\u8272\u5207\u6362"
+  sortOrder: 0
