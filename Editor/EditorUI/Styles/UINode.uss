@@ -1,0 +1,187 @@
+.ui-node {
+    background-color: rgb(51, 56, 64);
+    border-top-left-radius: 4px;
+    border-top-right-radius: 4px;
+    border-bottom-left-radius: 4px;
+    border-bottom-right-radius: 4px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgb(28, 31, 36);
+    border-right-color: rgb(28, 31, 36);
+    border-top-color: rgb(28, 31, 36);
+    border-bottom-color: rgb(28, 31, 36);
+    padding-left: 1px;
+    padding-right: 1px;
+    padding-top: 1px;
+    padding-bottom: 1px;
+}
+
+.ui-node--default {
+    border-left-color: rgb(28, 31, 36);
+    border-right-color: rgb(28, 31, 36);
+    border-top-color: rgb(28, 31, 36);
+    border-bottom-color: rgb(28, 31, 36);
+}
+
+.ui-node--selected {
+    border-left-color: rgb(86, 170, 255);
+    border-right-color: rgb(86, 170, 255);
+    border-top-color: rgb(86, 170, 255);
+    border-bottom-color: rgb(86, 170, 255);
+}
+
+.ui-node--running {
+    border-left-color: rgb(255, 184, 77);
+    border-right-color: rgb(255, 184, 77);
+    border-top-color: rgb(255, 184, 77);
+    border-bottom-color: rgb(255, 184, 77);
+}
+
+.ui-node--completed {
+    border-left-color: rgb(95, 211, 131);
+    border-right-color: rgb(95, 211, 131);
+    border-top-color: rgb(95, 211, 131);
+    border-bottom-color: rgb(95, 211, 131);
+}
+
+.ui-node Label {
+    color: white;
+    -unity-font-style: bold;
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+/* 外层 Toggle 容器（清空默认样式） */
+.ui-link-toggle {
+    width: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    height: 18px;
+    min-height: 18px;
+    max-height: 18px;
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+
+    /* 隐藏 Toggle 原生样式 */
+    --unity-toggle-background-color: transparent;
+    --unity-toggle-border-color: transparent;
+    --unity-toggle-checkmark-color: transparent;
+    
+    align-self: center;
+}
+
+/* 圆形外层容器（替代原来的 background） */
+.ui-link-toggle__container {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%; /* 外层圆形 */
+    background-color: #666666; /* 未选中底色 */
+    justify-content: center;
+    align-items: center;
+    transition: background-color 0.2s;
+}
+
+
+/* Toggle 选中时，外层容器变蓝 */
+.ui-link-toggle:checked .ui-link-toggle__container {
+    background-color: #2196F3;
+}
+
+/* 内部小白点（选中时显示） */
+.ui-link-toggle__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%; /* 圆点 */
+    background-color: #FFFFFF; /* 白色 */
+}
+
+.ui-link-toggle > .unity-toggle__input {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    min-height: 14px;
+    max-width: 14px;
+    max-height: 14px;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    justify-content: center;
+    align-items: center;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+    border-left-width: 1px;
+    border-right-width: 1px;
+    border-top-width: 1px;
+    border-bottom-width: 1px;
+    border-left-color: rgb(138, 145, 158);
+    border-right-color: rgb(138, 145, 158);
+    border-top-color: rgb(138, 145, 158);
+    border-bottom-color: rgb(138, 145, 158);
+    background-color: rgb(51, 56, 64);
+}
+
+.ui-link-toggle > .unity-toggle__input > .unity-toggle__checkmark {
+    width: 6px;
+    height: 6px;
+    min-width: 6px;
+    min-height: 6px;
+    max-width: 6px;
+    max-height: 6px;
+    margin-left: 0;
+    margin-right: 0;
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-left: 0;
+    padding-right: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    border-top-left-radius: 999px;
+    border-top-right-radius: 999px;
+    border-bottom-left-radius: 999px;
+    border-bottom-right-radius: 999px;
+    background-image: none;
+    background-color: transparent;
+}
+
+.ui-link-toggle:checked > .unity-toggle__input {
+    border-left-color: rgb(86, 170, 255);
+    border-right-color: rgb(86, 170, 255);
+    border-top-color: rgb(86, 170, 255);
+    border-bottom-color: rgb(86, 170, 255);
+    background-color: rgb(36, 78, 120);
+}
+
+.ui-link-toggle:checked > .unity-toggle__input > .unity-toggle__checkmark {
+    background-color: rgb(86, 170, 255);
+}
+
+.ui-link-toggle:hover > .unity-toggle__input {
+    border-left-color: rgb(95, 211, 131);
+    border-right-color: rgb(95, 211, 131);
+    border-top-color: rgb(95, 211, 131);
+    border-bottom-color: rgb(95, 211, 131);
+}
+
+.ui-link-toggle.unity-disabled > .unity-toggle__input {
+    border-left-color: rgb(231, 95, 95);
+    border-right-color: rgb(231, 95, 95);
+    border-top-color: rgb(231, 95, 95);
+    border-bottom-color: rgb(231, 95, 95);
+    background-color: rgb(44, 48, 54);
+}
+
+.ui-link-toggle.unity-disabled > .unity-toggle__input > .unity-toggle__checkmark {
+    background-color: rgb(231, 95, 95);
+}

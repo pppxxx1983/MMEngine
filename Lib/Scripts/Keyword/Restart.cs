@@ -8,7 +8,7 @@ namespace SP
     
     public class Restart : Service
     {
-        private void OnEnable()
+        protected override void OnEnable()
         {
             NextService();
         }
