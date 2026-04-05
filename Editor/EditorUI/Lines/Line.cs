@@ -11,8 +11,9 @@ namespace PlayableFramework.Editor
         public bool IsVisible { get; set; }
         public Vector2 Start { get; set; }
         public Vector2 End { get; set; }
-        public float Width { get; set; } = 3f;
+        public float Width { get; set; } = 2f;
         public bool IsSelected { get; set; }
+        public Color StrokeColor { get; set; } = DefaultColor;
 
         public Line()
         {
@@ -34,7 +35,7 @@ namespace PlayableFramework.Editor
 
             Painter2D painter = context.painter2D;
             painter.lineWidth = Width;
-            painter.strokeColor = IsSelected ? SelectedColor : DefaultColor;
+            painter.strokeColor = IsSelected ? SelectedColor : StrokeColor;
             painter.BeginPath();
             painter.MoveTo(Start);
             painter.LineTo(End);

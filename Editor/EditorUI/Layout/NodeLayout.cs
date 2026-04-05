@@ -21,7 +21,11 @@ namespace PlayableFramework.Editor
         public NodeLayout()
         {
             style.alignSelf = Align.Stretch;
+            style.flexDirection = FlexDirection.Column;
+            style.alignItems = Align.Stretch;
             style.justifyContent = Justify.Center;
+            style.paddingTop = 2f;
+            style.paddingBottom = 4f;
             ShowDebugBorder = true;
         }
     }

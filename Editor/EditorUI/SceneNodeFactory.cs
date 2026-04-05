@@ -8,6 +8,7 @@ namespace PlayableFramework.Editor
 {
     internal static class SceneNodeFactory
     {
+        private const string GroupGraphParentName = "Group";
         private const string SpecialGraphParentName = "Special";
 
         public static GameObject CreateSceneNode(Type serviceType)
@@ -17,7 +18,7 @@ namespace PlayableFramework.Editor
                 return null;
             }
 
-            Root root = UnityEngine.Object.FindObjectOfType<Root>();
+            Root root = GameObjectOperator.FindRoot();
             if (root == null)
             {
                 GameObject rootObject = new GameObject("Root");
@@ -25,15 +26,15 @@ namespace PlayableFramework.Editor
                 root = Undo.AddComponent<Root>(rootObject);
             }
 
-            ResourceCenter resourceCenter = EnsureComponentChild<ResourceCenter>(root.transform, "ResourceCenter");
-            GlobalContext globalContext = EnsureComponentChild<GlobalContext>(root.transform, "GlobalContext");
-            GlobalAudioManager audioManager = EnsureComponentChild<GlobalAudioManager>(root.transform, "GlobalAudioManager");
+            ResourceCenter resourceCenter = GameObjectOperator.EnsureComponentChild<ResourceCenter>(root.transform, "ResourceCenter");
+            GlobalContext globalContext = GameObjectOperator.EnsureComponentChild<GlobalContext>(root.transform, "GlobalContext");
+            GlobalAudioManager audioManager = GameObjectOperator.EnsureComponentChild<GlobalAudioManager>(root.transform, "GlobalAudioManager");
 
             root.resourceCenter = resourceCenter;
             root.audioManager = audioManager;
             EditorUtility.SetDirty(root);
 
-            Graph graph = root.GetComponentInChildren<Graph>();
+            Graph graph = GameObjectOperator.FindGraph();
             if (graph == null)
             {
                 GameObject graphObject = new GameObject("Graph");
@@ -42,12 +43,20 @@ namespace PlayableFramework.Editor
                 graph = Undo.AddComponent<Graph>(graphObject);
             }
 
-            GameObject nodeObject = graph.CreateNodeObject();
-            if (typeof(ISpecialNode).IsAssignableFrom(serviceType))
+            EnsureSceneNodeId(graph.gameObject);
+
+            Transform parentTransform = graph.transform;
+            if (typeof(IGroupNode).IsAssignableFrom(serviceType))
             {
-                Transform specialParent = EnsureChildTransform(graph.transform, SpecialGraphParentName);
-                nodeObject.transform.SetParent(specialParent, false);
+                parentTransform = GameObjectOperator.EnsureChildTransform(graph.transform, GroupGraphParentName);
             }
+            else if (typeof(ISpecialNode).IsAssignableFrom(serviceType))
+            {
+                parentTransform = GameObjectOperator.EnsureChildTransform(graph.transform, SpecialGraphParentName);
+            }
+
+            GameObject nodeObject = graph.CreateNodeObject();
+            nodeObject.transform.SetParent(parentTransform, false);
 
             Undo.RegisterCreatedObjectUndo(nodeObject, "Create Node");
             Undo.AddComponent<SceneRefObject>(nodeObject);
@@ -88,45 +97,6 @@ namespace PlayableFramework.Editor
             }
 
             return sceneRefObject != null ? sceneRefObject.Id : null;
-        }
-
-        private static T EnsureComponentChild<T>(Transform rootTransform, string childName) where T : Component
-        {
-            Transform childTransform = rootTransform.Find(childName);
-            GameObject childObject;
-
-            if (childTransform == null)
-            {
-                childObject = new GameObject(childName);
-                Undo.RegisterCreatedObjectUndo(childObject, "Create " + childName);
-                childObject.transform.SetParent(rootTransform, false);
-            }
-            else
-            {
-                childObject = childTransform.gameObject;
-            }
-
-            T component = childObject.GetComponent<T>();
-            if (component == null)
-            {
-                component = Undo.AddComponent<T>(childObject);
-            }
-
-            return component;
-        }
-
-        private static Transform EnsureChildTransform(Transform parentTransform, string childName)
-        {
-            Transform childTransform = parentTransform.Find(childName);
-            if (childTransform != null)
-            {
-                return childTransform;
-            }
-
-            GameObject childObject = new GameObject(childName);
-            Undo.RegisterCreatedObjectUndo(childObject, "Create " + childName);
-            childObject.transform.SetParent(parentTransform, false);
-            return childObject.transform;
         }
     }
 }

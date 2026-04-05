@@ -15,13 +15,15 @@ namespace PlayableFramework.Editor
     public sealed class NodeData
     {
         public string Id { get; }
+        public string ParentId { get; set; }
         public string Title { get; set; }
         public Vector2 Position { get; set; }
         public bool IsSelected { get; set; }
         public NodeBorderState BorderState { get; set; }
-        public NodeData(Vector2 position, string title = "Node", string id = null)
+        public NodeData(Vector2 position, string title = "Node", string id = null, string parentId = null)
         {
             Id = string.IsNullOrEmpty(id) ? Guid.NewGuid().ToString("N") : id;
+            ParentId = parentId;
             Title = string.IsNullOrEmpty(title) ? "Node" : title;
             Position = position;
             BorderState = NodeBorderState.Default;

@@ -13,6 +13,7 @@ namespace PlayableFramework.Editor
 
     public sealed class NodePosAsset : ScriptableObject
     {
+        public string graphId;
         public List<NodePos> nodes = new List<NodePos>();
     }
 }

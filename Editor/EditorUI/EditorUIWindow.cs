@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using SP;
 using SP.SceneRefs;
 using UnityEditor;
+using UnityEditor.ShortcutManagement;
 using UnityEditor.UIElements;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -11,19 +12,53 @@ namespace PlayableFramework.Editor
     public sealed class EditorUIWindow : EditorWindow
     {
         private const string AssetKey = "PlayableFramework.EditorUI.NodePosAsset";
+        private static bool suppressHierarchySync;
 
         private bool isSyncingSelection;
         private bool isBoxSelecting;
+        private bool isCanvasPanning;
         private Vector2 boxStart;
         private Vector2 boxCurrent;
+        private Vector2 panStartMouse;
+        private Vector2 panStartOffset;
+        private Vector2 canvasOffset;
+        private float canvasScale = 1f;
         private ObjectField assetField;
         private HelpBox saveTip;
+        private VisualElement viewport;
         private NodePosAsset posAsset;
+        private readonly Dictionary<string, Vector2> pendingPosMap = new Dictionary<string, Vector2>();
 
         [MenuItem("Tools/PlayableFramework/Editor UI")]
         private static void OpenWindow()
         {
             UIManager.Instance.EnsureWindow().Show();
+        }
+
+        [Shortcut("PlayableFramework/Save Node Pos", typeof(EditorUIWindow), KeyCode.S, ShortcutModifiers.Action)]
+        private static void OnSaveNodePosShortcut()
+        {
+            Debug.Log("EditorUI window Ctrl+S shortcut triggered.");
+
+            EditorUIWindow window = EditorWindow.focusedWindow as EditorUIWindow;
+            if (window == null)
+            {
+                return;
+            }
+
+            window.SaveNodePosWithAsset();
+        }
+
+        [Shortcut("PlayableFramework/Delete Selected Nodes", typeof(EditorUIWindow), KeyCode.Delete)]
+        private static void OnDeleteSelectedNodesShortcut()
+        {
+            EditorUIWindow window = EditorWindow.focusedWindow as EditorUIWindow;
+            if (window == null)
+            {
+                return;
+            }
+
+            window.DeleteSelection();
         }
 
         private void OnEnable()
@@ -41,13 +76,16 @@ namespace PlayableFramework.Editor
             SavePos();
         }
 
+        private void OnInspectorUpdate()
+        {
+            UIManager.Instance.VarLine?.MarkDirtyRepaint();
+        }
+
         public void CreateGUI()
         {
             rootVisualElement.Clear();
             rootVisualElement.style.flexGrow = 1f;
             rootVisualElement.style.backgroundColor = new Color(0.15f, 0.16f, 0.18f, 1f);
-            rootVisualElement.focusable = true;
-            rootVisualElement.RegisterCallback<KeyDownEvent>(OnKeyDown);
             LoadAsset();
 
             VisualElement topBar = new HLayout();
@@ -78,18 +116,32 @@ namespace PlayableFramework.Editor
 
             rootVisualElement.Add(topBar);
 
+            viewport = new VisualElement();
+            viewport.name = "editor-ui-viewport";
+            viewport.focusable = true;
+            viewport.style.flexGrow = 1f;
+            viewport.style.position = Position.Relative;
+            viewport.style.overflow = Overflow.Hidden;
+            viewport.RegisterCallback<ContextClickEvent>(OnCanvasContextClick);
+            viewport.RegisterCallback<PointerDownEvent>(OnCanvasPointerDown, TrickleDown.TrickleDown);
+            viewport.RegisterCallback<PointerMoveEvent>(OnCanvasPointerMove, TrickleDown.TrickleDown);
+            viewport.RegisterCallback<PointerUpEvent>(OnCanvasPointerUp, TrickleDown.TrickleDown);
+            viewport.RegisterCallback<WheelEvent>(OnCanvasWheel, TrickleDown.TrickleDown);
+            rootVisualElement.Add(viewport);
+
             VisualElement canvas = new VisualElement();
             canvas.name = "editor-ui-canvas";
-            canvas.focusable = true;
-            canvas.style.flexGrow = 1f;
-            canvas.style.position = Position.Relative;
-            canvas.RegisterCallback<ContextClickEvent>(OnCanvasContextClick);
-            canvas.RegisterCallback<PointerDownEvent>(OnCanvasPointerDown, TrickleDown.TrickleDown);
-            canvas.RegisterCallback<PointerMoveEvent>(OnCanvasPointerMove, TrickleDown.TrickleDown);
-            canvas.RegisterCallback<PointerUpEvent>(OnCanvasPointerUp, TrickleDown.TrickleDown);
-            rootVisualElement.Add(canvas);
+            canvas.pickingMode = PickingMode.Position;
+            canvas.style.position = Position.Absolute;
+            canvas.style.left = 0f;
+            canvas.style.top = 0f;
+            canvas.style.width = 12000f;
+            canvas.style.height = 12000f;
+            canvas.style.transformOrigin = new TransformOrigin(0f, 0f, 0f);
+            viewport.Add(canvas);
             UIManager.Instance.SetRoot(rootVisualElement);
             UIManager.Instance.SetCanvas(canvas);
+            ApplyCanvasOffset();
             RefreshAssetTip();
 
             SyncNodes();
@@ -104,20 +156,35 @@ namespace PlayableFramework.Editor
             }
 
             canvas.Clear();
+            Curve curve = UIManager.Instance.Curve;
+            if (curve == null)
+            {
+                curve = new Curve();
+            }
+
+            VarLine varLine = UIManager.Instance.VarLine;
+            if (varLine == null)
+            {
+                varLine = new VarLine();
+            }
+
             Line line = new Line();
             UIManager.Instance.SetCanvas(canvas);
+            UIManager.Instance.SetCurve(curve);
+            UIManager.Instance.SetVarLine(varLine);
             UIManager.Instance.SetLine(line);
 
-            for (int i = 0; i < NodeManager.Instance.Nodes.Count; i++)
+            for (int i = 0; i < NodeManager.Instance.UINodes.Count; i++)
             {
-                NodeData nodeData = NodeManager.Instance.Nodes[i];
-                if (nodeData != null)
+                UINode node = NodeManager.Instance.UINodes[i];
+                if (node != null)
                 {
-                    UINode node = new UINode(nodeData);
                     canvas.Add(node);
                 }
             }
 
+            canvas.Add(curve);
+            canvas.Add(varLine);
             canvas.Add(line);
             SelectionBox selectionBox = new SelectionBox();
             UIManager.Instance.SetSelectionBox(selectionBox);
@@ -126,6 +193,11 @@ namespace PlayableFramework.Editor
 
         private void OnHierarchyChange()
         {
+            if (suppressHierarchySync)
+            {
+                return;
+            }
+
             VisualElement canvas = UIManager.Instance.Canvas;
             if (canvas == null)
             {
@@ -153,6 +225,12 @@ namespace PlayableFramework.Editor
                     node.Refresh();
                 }
             }
+
+            Curve curve = UIManager.Instance.Curve;
+            if (curve != null)
+            {
+                curve.MarkDirtyRepaint();
+            }
         }
 
         private void OnSelectionChange()
@@ -178,7 +256,7 @@ namespace PlayableFramework.Editor
                     return;
                 }
 
-                List<NodeData> selectedNodes = new List<NodeData>();
+                List<UINode> selectedNodes = new List<UINode>();
                 for (int i = 0; i < selectedObjects.Length; i++)
                 {
                     GameObject selectedObject = selectedObjects[i];
@@ -193,7 +271,7 @@ namespace PlayableFramework.Editor
                         continue;
                     }
 
-                    NodeData node = NodeManager.Instance.GetNode(nodeId);
+                    UINode node = NodeManager.Instance.GetUINode(nodeId);
                     if (node != null)
                     {
                         selectedNodes.Add(node);
@@ -216,8 +294,19 @@ namespace PlayableFramework.Editor
 
         private void OnCanvasContextClick(ContextClickEvent evt)
         {
-            UIManager.Instance.Canvas.Focus();
-            Vector2 mousePosition = evt.mousePosition;
+            VisualElement surface = evt.currentTarget as VisualElement;
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            if (surface != null)
+            {
+                surface.Focus();
+            }
+
+            Vector2 mousePosition = canvas.WorldToLocal(evt.mousePosition);
             EditorUITypeMenu.ShowCreateMenu(mousePosition, selectedType =>
             {
                 if (selectedType == null)
@@ -232,28 +321,14 @@ namespace PlayableFramework.Editor
                 }
 
                 string nodeId = SceneNodeFactory.GetSceneNodeId(nodeObject);
-                SyncNodes();
-
-                NodeData node = NodeManager.Instance.GetNode(nodeId);
-                if (node != null)
+                if (!string.IsNullOrEmpty(nodeId))
                 {
-                    node.Position = mousePosition;
+                    pendingPosMap[nodeId] = mousePosition;
                 }
 
+                SyncNodes();
                 SavePos();
-                RebuildNodes();
             });
-            evt.StopPropagation();
-        }
-
-        private void OnKeyDown(KeyDownEvent evt)
-        {
-            if (evt.keyCode != KeyCode.Delete && evt.keyCode != KeyCode.Backspace)
-            {
-                return;
-            }
-
-            DeleteSelectedNode();
             evt.StopPropagation();
         }
 
@@ -296,6 +371,17 @@ namespace PlayableFramework.Editor
             SavePos();
         }
 
+        private void SaveNodePosWithAsset()
+        {
+            if (posAsset == null)
+            {
+                CreatePosAsset();
+                return;
+            }
+
+            SavePos();
+        }
+
         private void LoadAsset()
         {
             string path = EditorPrefs.GetString(AssetKey, string.Empty);
@@ -317,14 +403,16 @@ namespace PlayableFramework.Editor
 
         private void SyncNodes()
         {
-            List<NodeData> nodes = new List<NodeData>();
-            Dictionary<string, Vector2> posMap = BuildPosMap();
+            List<UINode> nodes = new List<UINode>();
             Graph graph = FindSceneGraph();
             if (graph == null)
             {
-                NodeManager.Instance.SetNodes(nodes);
+                NodeManager.Instance.SetUINodes(nodes);
                 return;
             }
+
+            string graphId = SceneNodeFactory.EnsureSceneNodeId(graph.gameObject);
+            Dictionary<string, Vector2> posMap = BuildPosMap(graphId);
 
             Service[] services = graph.GetComponentsInChildren<Service>(true);
             HashSet<int> addedObjects = new HashSet<int>();
@@ -355,17 +443,31 @@ namespace PlayableFramework.Editor
                     position = new Vector2(80f, 80f + order * 90f);
                 }
 
-                nodes.Add(new NodeData(position, nodeObject.name, nodeId));
+                Vector2 pendingPosition;
+                if (pendingPosMap.TryGetValue(nodeId, out pendingPosition))
+                {
+                    position = pendingPosition;
+                }
+
+                string parentId = SceneNodeFactory.GetSceneNodeId(nodeObject.transform.parent != null ? nodeObject.transform.parent.gameObject : null);
+                NodeData nodeData = new NodeData(position, nodeObject.name, nodeId, parentId);
+                nodes.Add(new UINode(nodeData));
                 order++;
             }
 
-            NodeManager.Instance.SetNodes(nodes);
+            pendingPosMap.Clear();
+            NodeManager.Instance.SetUINodes(nodes);
         }
 
-        private Dictionary<string, Vector2> BuildPosMap()
+        private Dictionary<string, Vector2> BuildPosMap(string graphId)
         {
             Dictionary<string, Vector2> posMap = new Dictionary<string, Vector2>();
             if (posAsset == null || posAsset.nodes == null)
+            {
+                return posMap;
+            }
+
+            if (string.IsNullOrEmpty(graphId) || posAsset.graphId != graphId)
             {
                 return posMap;
             }
@@ -392,24 +494,40 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            Graph graph = FindSceneGraph();
+            if (graph == null)
+            {
+                posAsset.graphId = null;
+                if (posAsset.nodes != null)
+                {
+                    posAsset.nodes.Clear();
+                }
+
+                EditorUtility.SetDirty(posAsset);
+                AssetDatabase.SaveAssets();
+                RefreshAssetTip();
+                return;
+            }
+
             if (posAsset.nodes == null)
             {
                 posAsset.nodes = new List<NodePos>();
             }
 
+            posAsset.graphId = SceneNodeFactory.EnsureSceneNodeId(graph.gameObject);
             posAsset.nodes.Clear();
-            for (int i = 0; i < NodeManager.Instance.Nodes.Count; i++)
+            for (int i = 0; i < NodeManager.Instance.UINodes.Count; i++)
             {
-                NodeData node = NodeManager.Instance.Nodes[i];
-                if (node == null || string.IsNullOrEmpty(node.Id))
+                UINode node = NodeManager.Instance.UINodes[i];
+                if (node == null || node.Data == null || string.IsNullOrEmpty(node.Data.Id))
                 {
                     continue;
                 }
 
                 posAsset.nodes.Add(new NodePos
                 {
-                    id = node.Id,
-                    pos = node.Position
+                    id = node.Data.Id,
+                    pos = node.Data.Position
                 });
             }
 
@@ -418,20 +536,51 @@ namespace PlayableFramework.Editor
             RefreshAssetTip();
         }
 
-        private void DeleteSelectedNode()
+        private void DeleteSelection()
         {
-            NodeData node = NodeManager.Instance.SelectedNode;
-            if (node == null || string.IsNullOrEmpty(node.Id))
+            List<UINode> selectedNodes = NodeManager.Instance.GetSelectedUINodes();
+            if (selectedNodes.Count > 0)
+            {
+                for (int i = 0; i < selectedNodes.Count; i++)
+                {
+                    UINode node = selectedNodes[i];
+                    if (node == null || node.Data == null || string.IsNullOrEmpty(node.Data.Id))
+                    {
+                        continue;
+                    }
+
+                    GameObjectOperator.DestroyNodeObject(node.Data.Id);
+                }
+
+                SyncNodes();
+                SavePos();
+                return;
+            }
+
+            Curve curve = UIManager.Instance.Curve;
+            if (curve == null || !curve.HasSelection())
             {
                 return;
             }
 
-            GameObject nodeObject;
-            if (SceneRefManager.Instance.TryGetGameObject(node.Id, out nodeObject) && nodeObject != null)
+            List<string> childIds = curve.GetSelectedChildIds();
+            if (childIds.Count == 0)
             {
-                Undo.DestroyObjectImmediate(nodeObject);
+                return;
             }
 
+            for (int i = 0; i < childIds.Count; i++)
+            {
+                string childId = childIds[i];
+                if (string.IsNullOrEmpty(childId))
+                {
+                    continue;
+                }
+
+                GameObjectOperator.MoveNodeToGraph(childId);
+            }
+
+            curve.ClearSelection();
             SyncNodes();
             SavePos();
         }
@@ -446,7 +595,7 @@ namespace PlayableFramework.Editor
             isSyncingSelection = true;
             try
             {
-                List<NodeData> selectedNodes = NodeManager.Instance.GetSelectedNodes();
+                List<UINode> selectedNodes = NodeManager.Instance.GetSelectedUINodes();
                 if (selectedNodes.Count == 0)
                 {
                     if (Selection.activeGameObject != null)
@@ -460,14 +609,14 @@ namespace PlayableFramework.Editor
                 List<GameObject> selectedObjects = new List<GameObject>();
                 for (int i = 0; i < selectedNodes.Count; i++)
                 {
-                    NodeData node = selectedNodes[i];
-                    if (node == null || string.IsNullOrEmpty(node.Id))
+                    UINode node = selectedNodes[i];
+                    if (node == null || node.Data == null || string.IsNullOrEmpty(node.Data.Id))
                     {
                         continue;
                     }
 
                     GameObject nodeObject;
-                    if (SceneRefManager.Instance.TryGetGameObject(node.Id, out nodeObject) && nodeObject != null)
+                    if (GameObjectOperator.TryGetNodeObject(node.Data.Id, out nodeObject))
                     {
                         selectedObjects.Add(nodeObject);
                     }
@@ -483,35 +632,87 @@ namespace PlayableFramework.Editor
 
         private void OnCanvasPointerDown(PointerDownEvent evt)
         {
+            VisualElement surface = evt.currentTarget as VisualElement;
             VisualElement canvas = UIManager.Instance.Canvas;
+            Curve curve = UIManager.Instance.Curve;
+            if (canvas == null || surface == null)
+            {
+                return;
+            }
+
+            if (evt.target != surface && evt.target != canvas)
+            {
+                return;
+            }
+
+            if (evt.button == (int)MouseButton.MiddleMouse)
+            {
+                surface.Focus();
+                isCanvasPanning = true;
+                panStartMouse = new Vector2(evt.position.x, evt.position.y);
+                panStartOffset = canvasOffset;
+                surface.CapturePointer(evt.pointerId);
+                evt.StopPropagation();
+                return;
+            }
+
             if (evt.button != (int)MouseButton.LeftMouse)
             {
                 return;
             }
 
-            if (evt.target != canvas)
+            surface.Focus();
+            Vector2 pointerPosition = new Vector2(evt.position.x, evt.position.y);
+            Vector2 canvasLocalPosition = canvas.WorldToLocal(pointerPosition);
+            if (curve != null && curve.TrySelectAt(canvasLocalPosition))
             {
+                evt.StopPropagation();
                 return;
             }
 
-            canvas.Focus();
-            boxStart = evt.localPosition;
-            boxCurrent = evt.localPosition;
+            if (curve != null)
+            {
+                curve.ClearSelection();
+            }
+
+            boxStart = canvasLocalPosition;
+            boxCurrent = canvasLocalPosition;
             isBoxSelecting = true;
-            canvas.CapturePointer(evt.pointerId);
+            surface.CapturePointer(evt.pointerId);
             UpdateSelectionBox();
             evt.StopPropagation();
         }
 
         private void OnCanvasPointerMove(PointerMoveEvent evt)
         {
-            VisualElement canvas = UIManager.Instance.Canvas;
-            if (!isBoxSelecting || !canvas.HasPointerCapture(evt.pointerId))
+            VisualElement surface = evt.currentTarget as VisualElement;
+            if (surface == null)
             {
                 return;
             }
 
-            boxCurrent = evt.localPosition;
+            if (isCanvasPanning && surface.HasPointerCapture(evt.pointerId))
+            {
+                Vector2 currentMouse = new Vector2(evt.position.x, evt.position.y);
+                canvasOffset = panStartOffset + (currentMouse - panStartMouse);
+                ApplyCanvasOffset();
+                evt.StopPropagation();
+                return;
+            }
+
+            if (!isBoxSelecting || !surface.HasPointerCapture(evt.pointerId))
+            {
+                return;
+            }
+
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            Vector2 pointerPosition = new Vector2(evt.position.x, evt.position.y);
+            boxCurrent = canvas.WorldToLocal(pointerPosition);
             UpdateSelectionBox();
             ApplyBoxSelection();
             evt.StopPropagation();
@@ -519,14 +720,34 @@ namespace PlayableFramework.Editor
 
         private void OnCanvasPointerUp(PointerUpEvent evt)
         {
-            VisualElement canvas = UIManager.Instance.Canvas;
+            VisualElement surface = evt.currentTarget as VisualElement;
             SelectionBox selectionBox = UIManager.Instance.SelectionBox;
-            if (!isBoxSelecting || !canvas.HasPointerCapture(evt.pointerId))
+            if (surface == null)
             {
                 return;
             }
 
-            boxCurrent = evt.localPosition;
+            if (isCanvasPanning && surface.HasPointerCapture(evt.pointerId))
+            {
+                isCanvasPanning = false;
+                surface.ReleasePointer(evt.pointerId);
+                evt.StopPropagation();
+                return;
+            }
+
+            if (!isBoxSelecting || !surface.HasPointerCapture(evt.pointerId))
+            {
+                return;
+            }
+
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            Vector2 pointerPosition = new Vector2(evt.position.x, evt.position.y);
+            boxCurrent = canvas.WorldToLocal(pointerPosition);
             ApplyBoxSelection();
             isBoxSelecting = false;
             if (selectionBox != null)
@@ -534,7 +755,42 @@ namespace PlayableFramework.Editor
                 selectionBox.IsVisible = false;
                 selectionBox.MarkDirtyRepaint();
             }
-            canvas.ReleasePointer(evt.pointerId);
+            surface.ReleasePointer(evt.pointerId);
+            evt.StopPropagation();
+        }
+
+        private void ApplyCanvasOffset()
+        {
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            canvas.transform.position = new Vector3(canvasOffset.x, canvasOffset.y, 0f);
+            canvas.transform.scale = new Vector3(canvasScale, canvasScale, 1f);
+        }
+
+        private void OnCanvasWheel(WheelEvent evt)
+        {
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            float previousScale = canvasScale;
+            float nextScale = Mathf.Clamp(previousScale * (evt.delta.y > 0f ? 0.9f : 1.1f), 0.5f, 2f);
+            if (Mathf.Approximately(previousScale, nextScale))
+            {
+                return;
+            }
+
+            Vector2 mousePanelPosition = evt.mousePosition;
+            Vector2 contentPositionBeforeZoom = (mousePanelPosition - canvasOffset) / previousScale;
+            canvasScale = nextScale;
+            canvasOffset = mousePanelPosition - contentPositionBeforeZoom * canvasScale;
+            ApplyCanvasOffset();
             evt.StopPropagation();
         }
 
@@ -560,13 +816,14 @@ namespace PlayableFramework.Editor
         {
             VisualElement canvas = UIManager.Instance.Canvas;
             SelectionBox selectionBox = UIManager.Instance.SelectionBox;
+            Curve curve = UIManager.Instance.Curve;
             if (canvas == null || selectionBox == null)
             {
                 return;
             }
 
             Rect boxRect = selectionBox.Rect;
-            List<NodeData> selectedNodes = new List<NodeData>();
+            List<UINode> selectedNodes = new List<UINode>();
             int childCount = canvas.childCount;
             for (int i = 0; i < childCount; i++)
             {
@@ -579,22 +836,33 @@ namespace PlayableFramework.Editor
                 Rect nodeRect = node.layout;
                 if (boxRect.Overlaps(nodeRect))
                 {
-                    selectedNodes.Add(node.Data);
+                    selectedNodes.Add(node);
                 }
             }
 
             NodeManager.Instance.SetSelection(selectedNodes);
+            if (curve != null)
+            {
+                curve.SelectInRect(boxRect);
+            }
         }
 
         private static Graph FindSceneGraph()
         {
-            Root root = Object.FindObjectOfType<Root>();
-            if (root == null)
-            {
-                return null;
-            }
+            return GameObjectOperator.FindGraph();
+        }
 
-            return root.GetComponentInChildren<Graph>();
+        public static void SuppressHierarchySyncOnce()
+        {
+            suppressHierarchySync = true;
+            EditorApplication.delayCall -= ClearHierarchySyncSuppression;
+            EditorApplication.delayCall += ClearHierarchySyncSuppression;
+        }
+
+        private static void ClearHierarchySyncSuppression()
+        {
+            suppressHierarchySync = false;
+            EditorApplication.delayCall -= ClearHierarchySyncSuppression;
         }
     }
 }

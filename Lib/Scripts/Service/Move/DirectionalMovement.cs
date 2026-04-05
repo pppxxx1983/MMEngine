@@ -5,7 +5,7 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 
 namespace SP {
-    public class DirectionalMovement : Service,IServiceFlowPortConfig
+    public class DirectionalMovement : Service, IFlowPort
     {
         public bool HasEnterPort => false;
         public bool HasNextPort => false;

@@ -1,12 +1,14 @@
 using System.Collections.Generic;
+using UnityEditor;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace PlayableFramework.Editor
 {
     public sealed class NodeManager
     {
         private static NodeManager instance;
-        private readonly List<NodeData> nodes = new List<NodeData>();
+        private readonly List<UINode> nodes = new List<UINode>();
 
         public static NodeManager Instance => instance ??= new NodeManager();
 
@@ -14,17 +16,17 @@ namespace PlayableFramework.Editor
         public event System.Action SelectionChanged;
         public event System.Action PosChanged;
 
-        public IReadOnlyList<NodeData> Nodes => nodes;
+        public IReadOnlyList<UINode> UINodes => nodes;
 
-        public NodeData SelectedNode { get; private set; }
+        public UINode SelectedUINode { get; private set; }
 
-        public List<NodeData> GetSelectedNodes()
+        public List<UINode> GetSelectedUINodes()
         {
-            List<NodeData> selectedNodes = new List<NodeData>();
+            List<UINode> selectedNodes = new List<UINode>();
             for (int i = 0; i < nodes.Count; i++)
             {
-                NodeData node = nodes[i];
-                if (node != null && node.IsSelected)
+                UINode node = nodes[i];
+                if (node != null && node.Data != null && node.Data.IsSelected)
                 {
                     selectedNodes.Add(node);
                 }
@@ -38,22 +40,22 @@ namespace PlayableFramework.Editor
             
         }
 
-        public NodeData CreateNode(Vector2 position, string title = "Node", string id = null)
+        public UINode CreateNode(Vector2 position, string title = "Node", string id = null)
         {
-            NodeData node = new NodeData(position, title, id);
+            UINode node = new UINode(new NodeData(position, title, id));
             nodes.Add(node);
             NotifyChanged();
             return node;
         }
 
-        public bool RemoveNode(NodeData node)
+        public bool RemoveNode(UINode node)
         {
             if (node == null)
             {
                 return false;
             }
 
-            if (SelectedNode == node)
+            if (SelectedUINode == node)
             {
                 ClearSelection();
             }
@@ -67,7 +69,7 @@ namespace PlayableFramework.Editor
             return removed;
         }
 
-        public NodeData GetNode(string nodeId)
+        public UINode GetUINode(string nodeId)
         {
             if (string.IsNullOrEmpty(nodeId))
             {
@@ -76,8 +78,8 @@ namespace PlayableFramework.Editor
 
             for (int i = 0; i < nodes.Count; i++)
             {
-                NodeData node = nodes[i];
-                if (node != null && node.Id == nodeId)
+                UINode node = nodes[i];
+                if (node != null && node.Data != null && node.Data.Id == nodeId)
                 {
                     return node;
                 }
@@ -86,9 +88,36 @@ namespace PlayableFramework.Editor
             return null;
         }
 
-        public void SelectNode(NodeData node)
+        public LinkPoint GetCurrentMouseLinkPoint()
         {
-            List<NodeData> selectedNodes = new List<NodeData>();
+            VisualElement root = UIManager.Instance.Root;
+            if (root == null || root.panel == null)
+            {
+                return null;
+            }
+
+            Vector2 mousePosition = Event.current != null
+                ? Event.current.mousePosition
+                : GUIUtility.ScreenToGUIPoint(Input.mousePosition);
+
+            VisualElement pickedElement = root.panel.Pick(mousePosition) as VisualElement;
+            while (pickedElement != null)
+            {
+                LinkPoint linkPoint = pickedElement as LinkPoint;
+                if (linkPoint != null)
+                {
+                    return linkPoint;
+                }
+
+                pickedElement = pickedElement.parent;
+            }
+
+            return null;
+        }
+
+        public void SelectNode(UINode node)
+        {
+            List<UINode> selectedNodes = new List<UINode>();
             if (node != null)
             {
                 selectedNodes.Add(node);
@@ -105,19 +134,19 @@ namespace PlayableFramework.Editor
         public void Clear()
         {
             nodes.Clear();
-            SelectedNode = null;
+            SelectedUINode = null;
             NotifyChanged();
         }
 
-        public void SetNodes(List<NodeData> newNodes)
+        public void SetUINodes(List<UINode> newNodes)
         {
             HashSet<string> selectedIds = new HashSet<string>();
             for (int i = 0; i < nodes.Count; i++)
             {
-                NodeData current = nodes[i];
-                if (current != null && current.IsSelected && !string.IsNullOrEmpty(current.Id))
+                UINode current = nodes[i];
+                if (current != null && current.Data != null && current.Data.IsSelected && !string.IsNullOrEmpty(current.Data.Id))
                 {
-                    selectedIds.Add(current.Id);
+                    selectedIds.Add(current.Data.Id);
                 }
             }
 
@@ -128,20 +157,20 @@ namespace PlayableFramework.Editor
                 nodes.AddRange(newNodes);
             }
 
-            SelectedNode = null;
+            SelectedUINode = null;
             for (int i = 0; i < nodes.Count; i++)
             {
-                NodeData node = nodes[i];
-                if (node == null)
+                UINode node = nodes[i];
+                if (node == null || node.Data == null)
                 {
                     continue;
                 }
 
-                bool isSelected = !string.IsNullOrEmpty(node.Id) && selectedIds.Contains(node.Id);
-                node.IsSelected = isSelected;
-                if (isSelected && SelectedNode == null)
+                bool isSelected = !string.IsNullOrEmpty(node.Data.Id) && selectedIds.Contains(node.Data.Id);
+                node.Data.IsSelected = isSelected;
+                if (isSelected && SelectedUINode == null)
                 {
-                    SelectedNode = node;
+                    SelectedUINode = node;
                 }
             }
 
@@ -149,34 +178,34 @@ namespace PlayableFramework.Editor
             NotifySelectionChanged();
         }
 
-        public void SetSelection(List<NodeData> selectedNodes)
+        public void SetSelection(List<UINode> selectedNodes)
         {
             HashSet<string> selectedIds = new HashSet<string>();
             if (selectedNodes != null)
             {
                 for (int i = 0; i < selectedNodes.Count; i++)
                 {
-                    NodeData node = selectedNodes[i];
-                    if (node != null && !string.IsNullOrEmpty(node.Id))
+                    UINode node = selectedNodes[i];
+                    if (node != null && node.Data != null && !string.IsNullOrEmpty(node.Data.Id))
                     {
-                        selectedIds.Add(node.Id);
+                        selectedIds.Add(node.Data.Id);
                     }
                 }
             }
 
-            SelectedNode = null;
+            SelectedUINode = null;
             for (int i = 0; i < nodes.Count; i++)
             {
-                NodeData node = nodes[i];
-                if (node == null)
+                UINode node = nodes[i];
+                if (node == null || node.Data == null)
                 {
                     continue;
                 }
 
-                node.IsSelected = !string.IsNullOrEmpty(node.Id) && selectedIds.Contains(node.Id);
-                if (node.IsSelected && SelectedNode == null)
+                node.Data.IsSelected = !string.IsNullOrEmpty(node.Data.Id) && selectedIds.Contains(node.Data.Id);
+                if (node.Data.IsSelected && SelectedUINode == null)
                 {
-                    SelectedNode = node;
+                    SelectedUINode = node;
                 }
             }
 

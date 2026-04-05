@@ -25,7 +25,7 @@ namespace PlayableFramework.Editor
             style.flexDirection = FlexDirection.Row;
             style.alignItems = Align.Center;
             style.justifyContent = Justify.Center;
-            style.marginTop = 2f;
+            style.marginTop = 0f;
             style.marginBottom = 0f;
             style.alignSelf = Align.Stretch;
             style.flexGrow = 1f;

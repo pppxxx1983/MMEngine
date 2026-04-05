@@ -6,7 +6,7 @@ using UnityEngine;
 namespace SP
 {
     
-    public class Wizard : Service
+    public class Wizard : Service,IGroupNode
     {
         public override void Enter()
         {

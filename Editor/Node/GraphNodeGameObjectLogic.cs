@@ -47,7 +47,7 @@ namespace PlayableFramework.Editor
             Service serviceInstance = ResolveServiceInstance(nodeObject);
             if (serviceInstance != null)
             {
-                IServiceFlowPortConfig runtimeConfig = serviceInstance as IServiceFlowPortConfig;
+                IFlowPort runtimeConfig = serviceInstance as IFlowPort;
                 if (runtimeConfig != null)
                 {
                     hasEnter = runtimeConfig.HasEnterPort;
@@ -57,7 +57,7 @@ namespace PlayableFramework.Editor
                 return;
             }
 
-            if (serviceType == null || !typeof(IServiceFlowPortConfig).IsAssignableFrom(serviceType) || serviceType.IsAbstract)
+            if (serviceType == null || !typeof(IFlowPort).IsAssignableFrom(serviceType) || serviceType.IsAbstract)
             {
                 return;
             }
@@ -65,7 +65,7 @@ namespace PlayableFramework.Editor
             try
             {
                 object created = Activator.CreateInstance(serviceType);
-                IServiceFlowPortConfig config = created as IServiceFlowPortConfig;
+                IFlowPort config = created as IFlowPort;
                 if (config != null)
                 {
                     hasEnter = config.HasEnterPort;

@@ -19,6 +19,7 @@ namespace PlayableFramework.Editor
             style.alignSelf = Align.Stretch;
             style.justifyContent = Justify.SpaceBetween;
             style.alignItems = Align.Center;
+            style.marginBottom = 2f;
 
             leftLayout = new HLayout();
             leftLayout.style.flexGrow = 1f;
@@ -71,37 +72,44 @@ namespace PlayableFramework.Editor
 
         public void SetMirror(bool mirror)
         {
-            leftLayout.Clear();
-            rightLayout.Clear();
-
             if (mirror)
             {
+                style.flexDirection = FlexDirection.RowReverse;
                 enterLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
                 nextLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
-
-                enterPoint.SetReverseOrder(false);
+                leftLayout.style.flexDirection = FlexDirection.RowReverse;
+                rightLayout.style.flexDirection = FlexDirection.RowReverse;
+                leftLayout.style.justifyContent = Justify.FlexStart;
+                rightLayout.style.justifyContent = Justify.FlexEnd;
+                enterPoint.SetReverseOrder(true);
                 nextPoint.SetReverseOrder(true);
-
-                leftLayout.Add(nextPoint);
-                leftLayout.Add(nextLabel);
-
-                rightLayout.Add(enterLabel);
-                rightLayout.Add(enterPoint);
             }
             else
             {
+                style.flexDirection = FlexDirection.Row;
                 enterLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
                 nextLabel.style.unityTextAlign = TextAnchor.MiddleRight;
-
+                leftLayout.style.flexDirection = FlexDirection.Row;
+                rightLayout.style.flexDirection = FlexDirection.Row;
+                leftLayout.style.justifyContent = Justify.FlexStart;
+                rightLayout.style.justifyContent = Justify.FlexEnd;
                 enterPoint.SetReverseOrder(true);
                 nextPoint.SetReverseOrder(false);
-
-                leftLayout.Add(enterPoint);
-                leftLayout.Add(enterLabel);
-
-                rightLayout.Add(nextLabel);
-                rightLayout.Add(nextPoint);
             }
+        }
+
+        public void SetPortVisible(bool hasEnterPort, bool hasNextPort)
+        {
+            SetSideVisible(enterPoint, enterLabel, hasEnterPort);
+            SetSideVisible(nextPoint, nextLabel, hasNextPort);
+        }
+
+        private static void SetSideVisible(LinkPoint point, Label label, bool isVisible)
+        {
+            Visibility visibility = isVisible ? Visibility.Visible : Visibility.Hidden;
+            point.style.visibility = visibility;
+            label.style.visibility = visibility;
+            point.pickingMode = isVisible ? PickingMode.Position : PickingMode.Ignore;
         }
 
         public LinkPoint EnterPoint => enterPoint;

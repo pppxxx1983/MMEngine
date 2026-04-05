@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace SP
 {
-    public class TransformGetChildsToList : Service,IServiceFlowPortConfig
+    public class TransformGetChildsToList : Service, IFlowPort
     {
         public bool HasEnterPort => false;
         public bool HasNextPort => false;

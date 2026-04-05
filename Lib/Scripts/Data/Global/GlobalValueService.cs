@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace SP
 {
-    public abstract class GlobalValueService : Service, IServiceFlowPortConfig
+    public abstract class GlobalValueService : Service, IFlowPort
     {
         public bool HasEnterPort => false;
         public bool HasNextPort => false;

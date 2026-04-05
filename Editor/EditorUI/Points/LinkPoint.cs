@@ -11,16 +11,23 @@ namespace PlayableFramework.Editor
         Output
     }
 
-    public sealed class LinkPoint : HLayout
+    public class LinkPoint : HLayout
     {
-        private const string ToggleClassName = "ui-link-toggle";
+        private static readonly Color DefaultColor = new Color(0.55f, 0.55f, 0.55f, 1f);
+        private static readonly Color ValidColor = new Color(0.3f, 0.85f, 0.35f, 1f);
+        private static readonly Color InvalidColor = new Color(0.9f, 0.25f, 0.25f, 1f);
+        private static readonly Color ConnectedColor = new Color(0.95f, 0.82f, 0.28f, 1f);
 
+        private readonly LinkPointType type;
         private readonly VisualElement leftSlot;
+        private readonly Point point;
         private readonly VisualElement rightSlot;
-        private readonly Toggle toggle;
+        private VisualElement leftPlaceholder;
+        private VisualElement rightPlaceholder;
 
         public LinkPoint(LinkPointType type)
         {
+            this.type = type;
             pickingMode = PickingMode.Position;
             style.justifyContent = Justify.Center;
             style.alignItems = Align.Center;
@@ -32,12 +39,8 @@ namespace PlayableFramework.Editor
             leftSlot.style.alignItems = Align.Center;
             leftSlot.style.flexDirection = FlexDirection.Row;
 
-            toggle = new Toggle();
-            toggle.label = string.Empty;
-            toggle.AddToClassList(ToggleClassName);
-            toggle.style.width = 16f;
-            toggle.style.height = 16f;
-            toggle.RegisterCallback<MouseDownEvent>(OnToggleMouseDown, TrickleDown.TrickleDown);
+            point = new Point();
+            point.RegisterCallback<PointerDownEvent>(OnPointPointerDown, TrickleDown.TrickleDown);
 
             rightSlot = new VisualElement();
             rightSlot.style.justifyContent = Justify.FlexEnd;
@@ -47,37 +50,119 @@ namespace PlayableFramework.Editor
             Add(leftSlot);
             Add(rightSlot);
             SetReverseOrder(true);
+            SetState(LinkPointState.Default);
         }
 
         public void SetReverseOrder(bool reverse)
         {
+            AddMirrorPlaceholder();
             leftSlot.Clear();
             rightSlot.Clear();
 
             if (reverse)
             {
-                leftSlot.Add(toggle);
+                leftSlot.Add(point);
             }
             else
             {
-                rightSlot.Add(toggle);
+                rightSlot.Add(point);
             }
+
+            RemoveMirrorPlaceholder();
         }
 
         public Vector2 GetPointWorldPosition()
         {
-            return toggle.worldBound.center;
+            return point.worldBound.center;
         }
 
-        private void OnToggleMouseDown(MouseDownEvent evt)
+        public LinkPointType Type => type;
+        public string FieldName { get; set; }
+        public System.Type ValueType { get; set; }
+        public bool ExpectsList { get; set; }
+        public string NodeId { get; set; }
+
+        public void SetState(LinkPointState state)
+        {
+            if (state == LinkPointState.Valid)
+            {
+                point.SetColor(ValidColor);
+                return;
+            }
+
+            if (state == LinkPointState.Invalid)
+            {
+                point.SetColor(InvalidColor);
+                return;
+            }
+
+            if (state == LinkPointState.Connected)
+            {
+                point.SetColor(ConnectedColor);
+                return;
+            }
+
+            point.SetColor(DefaultColor);
+        }
+
+        private void AddMirrorPlaceholder()
+        {
+            if (leftPlaceholder == null)
+            {
+                leftPlaceholder = CreatePlaceholder();
+            }
+
+            if (rightPlaceholder == null)
+            {
+                rightPlaceholder = CreatePlaceholder();
+            }
+
+            if (leftPlaceholder.parent == null)
+            {
+                leftSlot.Add(leftPlaceholder);
+            }
+
+            if (rightPlaceholder.parent == null)
+            {
+                rightSlot.Add(rightPlaceholder);
+            }
+        }
+
+        private void RemoveMirrorPlaceholder()
+        {
+            leftPlaceholder?.RemoveFromHierarchy();
+            rightPlaceholder?.RemoveFromHierarchy();
+        }
+
+        private static VisualElement CreatePlaceholder()
+        {
+            VisualElement placeholder = new VisualElement();
+            placeholder.style.width = 14f;
+            placeholder.style.height = 14f;
+            placeholder.style.minWidth = 14f;
+            placeholder.style.minHeight = 14f;
+            placeholder.style.visibility = Visibility.Hidden;
+            placeholder.pickingMode = PickingMode.Ignore;
+            return placeholder;
+        }
+
+        private void OnPointPointerDown(PointerDownEvent evt)
         {
             if (evt.button != (int)MouseButton.LeftMouse)
             {
                 return;
             }
 
-            UIManager.Instance.BeginLine(GetPointWorldPosition());
+            UIManager.Instance.BeginLine(this, GetPointWorldPosition());
             evt.StopPropagation();
         }
+    }
+
+    public enum LinkPointState
+    {
+        Default,
+        Invalid,
+        Valid,
+        Connected
     }
 }

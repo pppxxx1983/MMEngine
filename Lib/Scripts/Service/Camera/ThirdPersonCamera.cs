@@ -6,10 +6,16 @@ namespace SP
     /// <summary>
     /// Third-person camera follow service.
     /// </summary>
-    public class ThirdPersonCamera : Service,IServiceFlowPortConfig
+    public class ThirdPersonCamera : Service, IFlowPort
     {
         public bool HasEnterPort => false;
         public bool HasNextPort => false;
+        [SerializeField] private bool isMirror;
+        public bool IsMirror
+        {
+            get => isMirror;
+            set => isMirror = value;
+        }
         
         
         [FormerlySerializedAs("targetCamera")]
