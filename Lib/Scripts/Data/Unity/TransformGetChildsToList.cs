@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -15,16 +15,14 @@ namespace SP
         [Output]
         private List<Transform> childs = new List<Transform>();
 
-        private void Awake()
+        public override void Init()
         {
             Logic();
         }
-
-        
-        public override void Enter()
+        private void OnEnable()
         {
             Logic();
-            NextService();
+            Next();
         }
 
         public void Logic()
@@ -43,7 +41,7 @@ namespace SP
                 return;
             }
 
-            var child = childParent.Get();
+            Transform child = childParent.Get();
             if (child == null)
             {
                 string sourceInfo = "InputType=" + childParent.GetResolvedInputType();
@@ -64,4 +62,9 @@ namespace SP
 
     }
 }
+
+
+
+
+
 

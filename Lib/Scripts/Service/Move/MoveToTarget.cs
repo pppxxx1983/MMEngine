@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace SP
 {
@@ -11,7 +11,7 @@ namespace SP
 
 #if UNITY_EDITOR
         [Space]
-        [Tooltip("是否始终显示路径 Gizmos")]
+        [Tooltip("鏄惁濮嬬粓鏄剧ず璺緞 Gizmos")]
         public bool alwaysDisplay = false;
 #endif
 
@@ -21,8 +21,7 @@ namespace SP
         private bool _isMoving;
         private float _startZValue;
         private float _totalPathLength;
-
-        public override void Enter()
+        private void OnEnable()
         {
             _elapsedTime = 0f;
             _isMoving = false;
@@ -30,14 +29,14 @@ namespace SP
             if (moveObject == null)
             {
                 Debug.LogWarning($"[{GetType().Name}] moveObject is not set.", this);
-                NextService();
+                Next();
                 return;
             }
 
             if (_moveItems == null || _moveItems.Length < 2)
             {
                 Debug.LogWarning($"[{GetType().Name}] At least 2 path points are required.", this);
-                NextService();
+                Next();
                 return;
             }
 
@@ -46,21 +45,21 @@ namespace SP
             if (_totalPathLength <= 0f)
             {
                 ApplyProgress(1f);
-                NextService();
+                Next();
                 return;
             }
 
             if (time <= 0f)
             {
                 ApplyProgress(1f);
-                NextService();
+                Next();
                 return;
             }
 
             _isMoving = true;
         }
 
-        public override void Update()
+        private void Update()
         {
             if (!_isMoving)
             {
@@ -74,7 +73,7 @@ namespace SP
             if (progress >= 1f)
             {
                 _isMoving = false;
-                NextService();
+                Next();
             }
         }
 
@@ -211,3 +210,8 @@ namespace SP
 #endif
     }
 }
+
+
+
+
+

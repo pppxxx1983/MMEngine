@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -16,8 +16,7 @@ namespace SP
         // public TransformListVar output;
 
         [Output] private List<Transform> outList=new List<Transform>();
-
-        public override void Enter()
+        private void OnEnable()
         {
             outList.Clear();
             for (int i = 0; i < itemCount; i++)
@@ -28,10 +27,15 @@ namespace SP
 
                 outList.Add(item.transform);
             }
-            NextService();
+            Next();
         }
 
 
     }
 }
+
+
+
+
+
 

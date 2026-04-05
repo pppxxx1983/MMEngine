@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,10 +8,15 @@ namespace SP
     
     public class Wizard : Service,IGroupNode
     {
-        public override void Enter()
+        private void OnEnable()
         {
-            NextService();
+            Next();
         }
     }
 }
+
+
+
+
+
 

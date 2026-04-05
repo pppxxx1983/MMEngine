@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace SP
 {
@@ -11,7 +11,7 @@ namespace SP
 
 #if UNITY_EDITOR
         [Space]
-        [Tooltip("是否始终显示路径 Gizmos")]
+        [Tooltip("鏄惁濮嬬粓鏄剧ず璺緞 Gizmos")]
         public bool alwaysDisplay = false;
 #endif
 
@@ -50,16 +50,15 @@ namespace SP
 
             _isMoving = true;
         }
-
-        public override void Enter()
+        private void OnEnable()
         {
             if (!_isMoving)
             {
-                NextService();
+                Next();
             }
         }
 
-        public override void Update()
+        private void Update()
         {
             if (!_isMoving)
             {
@@ -72,7 +71,7 @@ namespace SP
             if (progress >= 1f)
             {
                 _isMoving = false;
-                NextService();
+                Next();
             }
         }
 
@@ -205,3 +204,8 @@ namespace SP
 #endif
     }
 }
+
+
+
+
+

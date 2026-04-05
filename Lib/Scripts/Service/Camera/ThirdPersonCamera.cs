@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.Serialization;
 
 namespace SP
@@ -47,7 +47,7 @@ namespace SP
         private float _shakeAmplitude = 0.01f;
         private bool _isShaking;
 
-        private void Awake()
+        public override void Init()
         {
             _camera = cameraInput != null ? cameraInput.Get() : null;
             if (_camera == null)
@@ -61,7 +61,6 @@ namespace SP
 
             _originalZ = _camera.transform.position.z;
         }
-
         private void OnEnable()
         {
             if (_camera == null)
@@ -88,14 +87,14 @@ namespace SP
 
             if (_camera == null)
             {
-                // NextService();
+                // Next();
                 return;
             }
 
             Transform target = ResolveTarget();
             if (target == null)
             {
-                // NextService();
+                // Next();
                 return;
             }
 
@@ -135,7 +134,7 @@ namespace SP
                 }
             }
 
-            // NextService();
+            // Next();
         }
 
 
@@ -164,3 +163,7 @@ namespace SP
 
     }
 }
+
+
+
+

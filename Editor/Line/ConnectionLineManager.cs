@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using SP;
@@ -91,7 +91,7 @@ namespace PlayableFramework.Editor
                         continue;
                     }
 
-                    Service boundService;
+                    MonoBehaviour boundService;
                     if (!TryGetInputBoundService(inputNode, inputPoint, out boundService) || boundService == null)
                     {
                         continue;
@@ -124,7 +124,7 @@ namespace PlayableFramework.Editor
             }
         }
 
-        private bool TryGetInputBoundService(GraphNode node, ConnectionPoint inputPoint, out Service boundService)
+        private bool TryGetInputBoundService(GraphNode node, ConnectionPoint inputPoint, out MonoBehaviour boundService)
         {
             boundService = null;
             if (node == null || inputPoint == null)
@@ -157,7 +157,7 @@ namespace PlayableFramework.Editor
             MMVar singleVar = inputVar as MMVar;
             if (singleVar != null)
             {
-                if (singleVar.type == InputType.Service && singleVar.service != null)
+                if (singleVar.type == InputType.Output && singleVar.service != null)
                 {
                     boundService = singleVar.service;
                     return true;
@@ -169,7 +169,7 @@ namespace PlayableFramework.Editor
             MMListVar listVar = inputVar as MMListVar;
             if (listVar != null)
             {
-                if (listVar.type == InputType.Service && listVar.service != null)
+                if (listVar.type == InputType.Output && listVar.service != null)
                 {
                     boundService = listVar.service;
                     return true;
@@ -245,3 +245,4 @@ namespace PlayableFramework.Editor
         }
     }
 }
+

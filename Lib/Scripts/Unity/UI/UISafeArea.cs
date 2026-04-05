@@ -1,9 +1,9 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace SP
 {
     /// <summary>
-    /// UI控制在安全区域内
+    /// UI鎺у埗鍦ㄥ畨鍏ㄥ尯鍩熷唴
     /// </summary>
     public class UISafeArea : MonoBehaviour
     {
@@ -13,18 +13,19 @@ namespace SP
         }
 
         /// <summary>
-        /// 调整UI在屏幕的安全区域
+        /// 璋冩暣UI鍦ㄥ睆骞曠殑瀹夊叏鍖哄煙
         /// </summary>
         private void SetUIInScreenSafeArea()
         {
             Rect rect = Screen.safeArea;
             RectTransform main = transform.GetComponent<RectTransform>();
-            // 计算顶部和底部的偏移量
+            // 璁＄畻椤堕儴鍜屽簳閮ㄧ殑鍋忕Щ閲?
             float topOffset = rect.yMax - Screen.height;
             float rightOffset = rect.xMax - Screen.width;
-            // 设置 UI 元素的偏移量
+            // 璁剧疆 UI 鍏冪礌鐨勫亸绉婚噺
             main.offsetMin = new Vector2(rect.xMin, rect.yMin);
             main.offsetMax = new Vector2(rightOffset, topOffset);
         }
     }
 }
+

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
 
@@ -10,8 +10,7 @@ namespace SP
         
         [Output]
         private List<Transform> output;
-
-        public override void Enter()
+        private void OnEnable()
         {
             if (!globalData.ValidateAndLog(this))
             {
@@ -25,9 +24,14 @@ namespace SP
                 return;
             }
 
-            NextService();
+            Next();
         }
 
     }
 }
+
+
+
+
+
 

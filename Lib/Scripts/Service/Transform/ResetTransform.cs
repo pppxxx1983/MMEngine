@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace SP
@@ -13,12 +13,11 @@ namespace SP
         public UnityEngine.Vector3 rotation;
         public bool setScale;
         public UnityEngine.Vector3 scale = UnityEngine.Vector3.one;
-
-        public override void Enter()
+        private void OnEnable()
         {
             if (saveTransform == null)
             {
-                NextService();
+                Next();
                 return;
             }
 
@@ -26,7 +25,7 @@ namespace SP
             if (states == null || states.Count == 0)
             {
                 UnityEngine.Debug.LogWarning("ResetTransform input returned no states.", this);
-                NextService();
+                Next();
                 return;
             }
 
@@ -41,8 +40,13 @@ namespace SP
                 state.Child.localScale = setScale ? scale : state.Scale;
             }
 
-            NextService();
+            Next();
         }
     }
 }
+
+
+
+
+
 

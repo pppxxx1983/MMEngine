@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using SP;
@@ -283,7 +283,7 @@ namespace PlayableFramework.Editor
             }
 
             InputType inputType = var.GetResolvedInputType();
-            if (inputType == InputType.Service && var.service != null)
+            if (inputType == InputType.Output && var.service != null)
             {
                 object serviceValue;
                 if (TryResolveServiceValue(var.service, valueType, false, out serviceValue))
@@ -321,7 +321,7 @@ namespace PlayableFramework.Editor
             }
 
             InputType inputType = listVar.GetResolvedInputType();
-            if (inputType == InputType.Service && listVar.service != null)
+            if (inputType == InputType.Output && listVar.service != null)
             {
                 object serviceValue;
                 if (TryResolveServiceValue(listVar.service, valueType, true, out serviceValue))
@@ -375,7 +375,7 @@ namespace PlayableFramework.Editor
             return new GUIContent(FormatValueForDisplay(value));
         }
 
-        private static bool TryResolveServiceValue(Service sourceService, Type valueType, bool expectsList, out object resolved)
+        private static bool TryResolveServiceValue(MonoBehaviour sourceService, Type valueType, bool expectsList, out object resolved)
         {
             resolved = null;
             if (sourceService == null)
@@ -383,14 +383,9 @@ namespace PlayableFramework.Editor
                 return false;
             }
 
-            if (sourceService.OutputSourceType == ServiceOutputSourceType.Global)
-            {
-                return TryResolveGlobalValue(sourceService.OutputGlobalKey, valueType, expectsList, out resolved);
-            }
-
             FieldInfo outputField;
             string error;
-            if (!ServiceOutputUtility.TryGetOutputField(sourceService.GetType(), out outputField, out error) || outputField == null)
+            if (!OutputUtility.TryGetOutputField(sourceService.GetType(), out outputField, out error) || outputField == null)
             {
                 return false;
             }
@@ -718,3 +713,5 @@ namespace PlayableFramework.Editor
         }
     }
 }
+
+

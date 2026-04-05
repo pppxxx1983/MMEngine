@@ -1,5 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using SP;
 using UnityEditor;
 using UnityEditor.UIElements;
@@ -10,13 +11,13 @@ namespace PlayableFramework.Editor
 {
     public sealed class ParamPoint : LinkPoint
     {
+        private Service boundService;
+        private FieldInfo boundFieldInfo;
         private SerializedObject serializedObject;
         private SerializedProperty rootProperty;
         private readonly VisualElement fieldRoot;
         private string typePropertyPath;
         private PropertyField propertyField;
-
-        public System.Type ValueType { get; private set; }
 
         public ParamPoint() : base(LinkPointType.Input)
         {
@@ -24,6 +25,7 @@ namespace PlayableFramework.Editor
             style.flexGrow = 1f;
             style.flexShrink = 1f;
             style.marginBottom = 2f;
+            style.minHeight = 18f;
 
             fieldRoot = new HLayout();
             fieldRoot.style.flexGrow = 1f;
@@ -43,6 +45,8 @@ namespace PlayableFramework.Editor
 
         public void Setup(Service service, FieldInfo fieldInfo)
         {
+            boundService = service;
+            boundFieldInfo = fieldInfo;
             fieldRoot.Clear();
             serializedObject = null;
             rootProperty = null;
@@ -82,6 +86,51 @@ namespace PlayableFramework.Editor
             propertyField.style.flexShrink = 1f;
             fieldRoot.Add(propertyField);
             propertyField.Bind(serializedObject);
+        }
+
+        public void RefreshBinding()
+        {
+            if (boundService == null || boundFieldInfo == null)
+            {
+                return;
+            }
+
+            Setup(boundService, boundFieldInfo);
+        }
+
+        public string GetBindingSignature()
+        {
+            if (boundService == null || boundFieldInfo == null)
+            {
+                return string.Empty;
+            }
+
+            SerializedObject latestObject = new SerializedObject(boundService);
+            SerializedProperty latestRootProperty = latestObject.FindProperty(boundFieldInfo.Name);
+            if (latestRootProperty == null)
+            {
+                return boundFieldInfo.Name + "|missing";
+            }
+
+            StringBuilder builder = new StringBuilder();
+            builder.Append(boundFieldInfo.Name);
+            builder.Append('|');
+            builder.Append(boundFieldInfo.FieldType.AssemblyQualifiedName);
+
+            if (typeof(MMVar).IsAssignableFrom(boundFieldInfo.FieldType) || typeof(MMListVar).IsAssignableFrom(boundFieldInfo.FieldType))
+            {
+                AppendPropertyValue(builder, latestRootProperty.FindPropertyRelative("type"));
+                AppendPropertyValue(builder, latestRootProperty.FindPropertyRelative("service"));
+                AppendPropertyValue(builder, latestRootProperty.FindPropertyRelative("global"));
+                AppendPropertyValue(builder, latestRootProperty.FindPropertyRelative("obj"));
+                AppendPropertyValue(builder, latestRootProperty.FindPropertyRelative("objs"));
+            }
+            else
+            {
+                AppendPropertyValue(builder, latestRootProperty);
+            }
+
+            return builder.ToString();
         }
 
         public void SetMirror(bool mirror)
@@ -125,35 +174,21 @@ namespace PlayableFramework.Editor
 
         private VisualElement BuildInputTypeField(System.Type fieldType, SerializedProperty typeProperty)
         {
-            List<InputType> allowedTypes = GetAllowedInputTypes(fieldType);
-            if (allowedTypes.Count == 0)
+            string displayText = BuildValueTypeDisplayText(fieldType);
+            if (string.IsNullOrEmpty(displayText))
             {
                 return null;
             }
 
-            List<string> choices = new List<string>(allowedTypes.Count);
-            for (int i = 0; i < allowedTypes.Count; i++)
-            {
-                choices.Add(allowedTypes[i].ToString());
-            }
-
-            InputType currentType = GetResolvedInputType(fieldType, typeProperty);
-            string currentChoice = currentType.ToString();
-            PopupField<string> popupField = new PopupField<string>(choices, currentChoice);
-            popupField.RegisterValueChangedCallback(evt =>
-            {
-                InputType nextType;
-                if (!System.Enum.TryParse(evt.newValue, out nextType))
-                {
-                    return;
-                }
-
-                typeProperty.enumValueIndex = (int)nextType;
-                serializedObject.ApplyModifiedProperties();
-                RebuildVarValueField(fieldType);
-                UIManager.Instance.VarLine?.MarkDirtyRepaint();
-            });
-            return popupField;
+            Label typeLabel = new Label(displayText);
+            typeLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
+            typeLabel.style.color = new Color(0.78f, 0.82f, 0.88f, 1f);
+            typeLabel.style.fontSize = 9f;
+            typeLabel.style.minHeight = 18f;
+            typeLabel.style.whiteSpace = WhiteSpace.NoWrap;
+            typeLabel.style.overflow = Overflow.Hidden;
+            typeLabel.style.textOverflow = TextOverflow.Ellipsis;
+            return typeLabel;
         }
 
         private void RebuildVarValueField(System.Type fieldType)
@@ -174,6 +209,17 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            if (IsOutputProperty(valueProperty))
+            {
+                VisualElement outputField = BuildOutputProviderField(valueProperty, fieldType);
+                if (outputField != null)
+                {
+                    fieldRoot.Add(outputField);
+                }
+
+                return;
+            }
+
             if (IsGlobalProperty(valueProperty))
             {
                 VisualElement globalField = BuildGlobalKeyField(valueProperty, fieldType);
@@ -189,8 +235,10 @@ namespace PlayableFramework.Editor
             valueField.label = string.Empty;
             valueField.style.flexGrow = 1f;
             valueField.style.flexShrink = 1f;
+            valueField.style.minHeight = 18f;
             fieldRoot.Add(valueField);
             valueField.Bind(serializedObject);
+            CompactField(valueField);
         }
 
         private SerializedProperty GetVarValueProperty(System.Type fieldType)
@@ -202,7 +250,7 @@ namespace PlayableFramework.Editor
             }
 
             InputType inputType = GetResolvedInputType(fieldType, typeProperty);
-            if (inputType == InputType.Service)
+            if (inputType == InputType.Output)
             {
                 return rootProperty.FindPropertyRelative("service");
             }
@@ -248,6 +296,51 @@ namespace PlayableFramework.Editor
             return property != null && property.name == "global";
         }
 
+        private static bool IsOutputProperty(SerializedProperty property)
+        {
+            return property != null && property.name == "service";
+        }
+
+        private VisualElement BuildOutputProviderField(SerializedProperty property, System.Type fieldType)
+        {
+            System.Type valueType = GetVarValueType(fieldType);
+            bool expectsList = fieldType != null && typeof(MMListVar).IsAssignableFrom(fieldType);
+
+            ObjectField objectField = new ObjectField();
+            objectField.objectType = typeof(UnityEngine.Object);
+            objectField.allowSceneObjects = true;
+            objectField.style.flexGrow = 1f;
+            objectField.style.flexShrink = 1f;
+            objectField.style.minHeight = 18f;
+            objectField.value = property.objectReferenceValue;
+            objectField.RegisterValueChangedCallback(evt =>
+            {
+                MonoBehaviour currentProvider = property.objectReferenceValue as MonoBehaviour;
+                if (evt.newValue == null)
+                {
+                    property.objectReferenceValue = null;
+                    serializedObject.ApplyModifiedProperties();
+                    objectField.SetValueWithoutNotify(null);
+                    RefreshNodePresentation();
+                    return;
+                }
+
+                MonoBehaviour resolvedProvider = ResolveOutputProviderSelection(evt.newValue, valueType, expectsList);
+                if (resolvedProvider == null)
+                {
+                    objectField.SetValueWithoutNotify(currentProvider);
+                    return;
+                }
+
+                property.objectReferenceValue = resolvedProvider;
+                serializedObject.ApplyModifiedProperties();
+                objectField.SetValueWithoutNotify(resolvedProvider);
+                RefreshNodePresentation();
+            });
+
+            return objectField;
+        }
+
         private VisualElement BuildGlobalKeyField(SerializedProperty property, System.Type fieldType)
         {
             System.Type valueType = GetVarValueType(fieldType);
@@ -272,11 +365,13 @@ namespace PlayableFramework.Editor
             PopupField<string> popupField = new PopupField<string>(choices, currentValue);
             popupField.style.flexGrow = 1f;
             popupField.style.flexShrink = 1f;
+            popupField.style.minHeight = 18f;
+            popupField.style.fontSize = 10f;
             popupField.RegisterValueChangedCallback(evt =>
             {
                 property.stringValue = evt.newValue == "<No Global>" ? string.Empty : evt.newValue;
                 serializedObject.ApplyModifiedProperties();
-                UIManager.Instance.VarLine?.MarkDirtyRepaint();
+                RefreshNodePresentation();
             });
             return popupField;
         }
@@ -418,6 +513,23 @@ namespace PlayableFramework.Editor
             return allowed;
         }
 
+        private string BuildValueTypeDisplayText(System.Type fieldType)
+        {
+            System.Type valueType = GetVarValueType(fieldType);
+            if (valueType == null)
+            {
+                return "Value";
+            }
+
+            string typeName = ObjectNames.NicifyVariableName(valueType.Name);
+            if (fieldType != null && typeof(MMListVar).IsAssignableFrom(fieldType))
+            {
+                return "List<" + typeName + ">";
+            }
+
+            return typeName;
+        }
+
         private static object CreateVarInstance(System.Type fieldType)
         {
             if (fieldType == null)
@@ -433,6 +545,66 @@ namespace PlayableFramework.Editor
             {
                 return null;
             }
+        }
+
+        private static MonoBehaviour ResolveOutputProviderSelection(UnityEngine.Object pickedObject, System.Type expectedValueType, bool expectsList)
+        {
+            if (pickedObject == null)
+            {
+                return null;
+            }
+
+            if (pickedObject is MonoBehaviour directProvider && IsOutputProviderCompatible(directProvider, expectedValueType, expectsList))
+            {
+                return directProvider;
+            }
+
+            GameObject owner = null;
+            if (pickedObject is GameObject pickedGameObject)
+            {
+                owner = pickedGameObject;
+            }
+            else if (pickedObject is Component pickedComponent)
+            {
+                owner = pickedComponent.gameObject;
+            }
+
+            if (owner == null)
+            {
+                return null;
+            }
+
+            MonoBehaviour[] providers = owner.GetComponents<MonoBehaviour>();
+            for (int i = 0; i < providers.Length; i++)
+            {
+                MonoBehaviour provider = providers[i];
+                if (provider != null && IsOutputProviderCompatible(provider, expectedValueType, expectsList))
+                {
+                    return provider;
+                }
+            }
+
+            return null;
+        }
+
+        private static bool IsOutputProviderCompatible(MonoBehaviour provider, System.Type expectedValueType, bool expectsList)
+        {
+            if (provider == null)
+            {
+                return false;
+            }
+
+            if (!expectsList)
+            {
+                return OutputUtility.TryValidateOutputProvider(provider, expectedValueType, out _);
+            }
+
+            if (!OutputUtility.TryGetOutputField(provider.GetType(), out FieldInfo outputField, out _ ) || outputField == null)
+            {
+                return false;
+            }
+
+            return OutputUtility.IsListOutputCompatible(outputField.FieldType, expectedValueType);
         }
 
         private void OnSerializedPropertyChange(SerializedPropertyChangeEvent evt)
@@ -453,7 +625,113 @@ namespace PlayableFramework.Editor
             }
 
             RebuildVarValueField(ValueType);
+            RefreshNodePresentation();
+        }
+
+        private void RefreshNodePresentation()
+        {
+            UINode node = this.GetFirstAncestorOfType<UINode>();
+            if (node != null)
+            {
+                node.Refresh();
+            }
+
             UIManager.Instance.VarLine?.MarkDirtyRepaint();
+            UIManager.Instance.Curve?.MarkDirtyRepaint();
+        }
+
+        private static void CompactField(VisualElement field)
+        {
+            if (field == null)
+            {
+                return;
+            }
+
+            field.schedule.Execute(() =>
+            {
+                ApplyCompactStylesRecursive(field);
+            });
+        }
+
+        private static void ApplyCompactStylesRecursive(VisualElement element)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            if (element is Label label)
+            {
+                label.style.fontSize = 9f;
+                label.style.whiteSpace = WhiteSpace.NoWrap;
+                label.style.overflow = Overflow.Hidden;
+                label.style.textOverflow = TextOverflow.Ellipsis;
+            }
+
+            element.style.minHeight = 18f;
+            element.style.height = StyleKeyword.Auto;
+
+            int childCount = element.childCount;
+            for (int i = 0; i < childCount; i++)
+            {
+                ApplyCompactStylesRecursive(element[i]);
+            }
+        }
+
+        private static void AppendPropertyValue(StringBuilder builder, SerializedProperty property)
+        {
+            builder.Append('|');
+            if (property == null)
+            {
+                builder.Append("<null>");
+                return;
+            }
+
+            switch (property.propertyType)
+            {
+                case SerializedPropertyType.ObjectReference:
+                    Object reference = property.objectReferenceValue;
+                    builder.Append(reference != null ? reference.GetInstanceID().ToString() : "0");
+                    break;
+                case SerializedPropertyType.String:
+                    builder.Append(property.stringValue ?? string.Empty);
+                    break;
+                case SerializedPropertyType.Enum:
+                    builder.Append(property.enumValueIndex);
+                    break;
+                case SerializedPropertyType.Integer:
+                    builder.Append(property.intValue);
+                    break;
+                case SerializedPropertyType.Boolean:
+                    builder.Append(property.boolValue ? "1" : "0");
+                    break;
+                case SerializedPropertyType.Generic:
+                    if (property.isArray)
+                    {
+                        builder.Append(property.arraySize);
+                        for (int i = 0; i < property.arraySize; i++)
+                        {
+                            SerializedProperty element = property.GetArrayElementAtIndex(i);
+                            if (element == null || element.propertyType != SerializedPropertyType.ObjectReference)
+                            {
+                                continue;
+                            }
+
+                            Object referenceElement = element.objectReferenceValue;
+                            builder.Append(',');
+                            builder.Append(referenceElement != null ? referenceElement.GetInstanceID().ToString() : "0");
+                        }
+                    }
+                    else
+                    {
+                        builder.Append(property.contentHash.ToString());
+                    }
+                    break;
+                default:
+                    builder.Append(property.contentHash.ToString());
+                    break;
+            }
         }
     }
 }
+

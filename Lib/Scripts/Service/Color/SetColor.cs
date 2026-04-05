@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 
@@ -8,8 +8,7 @@ namespace SP
     {
         public TransformListVar input;
         public Color targetColor = Color.white;
-
-        public override void Enter()
+        private void OnEnable()
         {
             List<Transform> targets = input.Get();
             if (targets != null)
@@ -24,7 +23,7 @@ namespace SP
                 }
             }
 
-            NextService();
+            Next();
         }
 
         internal static void ApplyColor(GameObject target, Color color)
@@ -42,4 +41,9 @@ namespace SP
         }
     }
 }
+
+
+
+
+
 

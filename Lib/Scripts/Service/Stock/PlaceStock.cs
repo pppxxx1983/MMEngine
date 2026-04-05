@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SP;
 using UnityEngine;
@@ -9,13 +9,12 @@ public class PlaceStock : Service
     public TransformListVar dataSource ;
     [Input]
     public StockVar placeStocks;
-
-    public override void Enter()
-    {
+        private void OnEnable()
+        {
 
         if (!dataSource.ValidateAndLog(this) || !placeStocks.ValidateAndLog(this))
         {
-            NextService();
+            Next();
             return;
         }
 
@@ -23,7 +22,7 @@ public class PlaceStock : Service
         if (list == null || list.Count == 0)
         {
             Debug.LogWarning("PlaceStock service returned a null list",this);
-            NextService();
+            Next();
             return;
         }
 
@@ -31,7 +30,7 @@ public class PlaceStock : Service
         if (targetStock == null)
         {
             Debug.LogWarning("PlaceStock service returned a null target stock",this);
-            NextService();
+            Next();
             return;
         }
         for (int i = 0; i < list.Count; i++)
@@ -43,7 +42,7 @@ public class PlaceStock : Service
             targetStock.StockIn(current, false);
         }
     
-        NextService();
+        Next();
     }
     //
     // private static bool IsSupportedMode(StockSourceMode mode)
@@ -51,4 +50,9 @@ public class PlaceStock : Service
     //     return mode == StockSourceMode.Drag || mode == StockSourceMode.Global;
     // }
 }
+
+
+
+
+
 

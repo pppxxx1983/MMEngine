@@ -261,6 +261,49 @@ public static class GlobalTypeUtility
 {
     private const BindingFlags OutputFieldFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
+    public static bool IsGameObjectTransformCompatible(Type sourceType, Type targetType)
+    {
+        if (sourceType == null || targetType == null)
+        {
+            return false;
+        }
+
+        bool sourceIsGameObject = sourceType == typeof(GameObject);
+        bool sourceIsTransform = sourceType == typeof(Transform);
+        bool targetIsGameObject = targetType == typeof(GameObject);
+        bool targetIsTransform = targetType == typeof(Transform);
+        return (sourceIsGameObject || sourceIsTransform) && (targetIsGameObject || targetIsTransform);
+    }
+
+    public static bool TryConvertGameObjectTransformObject(UnityEngine.Object sourceObject, Type targetType, out UnityEngine.Object value)
+    {
+        value = null;
+        if (sourceObject == null || targetType == null)
+        {
+            return false;
+        }
+
+        if (targetType == typeof(GameObject))
+        {
+            value = ExtractGameObject(sourceObject);
+            return value != null;
+        }
+
+        if (targetType == typeof(Transform))
+        {
+            GameObject gameObject = ExtractGameObject(sourceObject);
+            if (gameObject == null)
+            {
+                return false;
+            }
+
+            value = gameObject.transform;
+            return value != null;
+        }
+
+        return false;
+    }
+
     public static bool TryConvertPrimitive(object sourceValue, Type targetType, out object value)
     {
         value = null;
@@ -314,6 +357,13 @@ public static class GlobalTypeUtility
         if (normalizedObject == null)
         {
             return false;
+        }
+
+        if (IsGameObjectTransformCompatible(configuredType, targetType) &&
+            TryConvertGameObjectTransformObject(normalizedObject, targetType, out UnityEngine.Object convertedGameObjectTransform))
+        {
+            value = convertedGameObjectTransform;
+            return true;
         }
 
         if (targetType == typeof(GameObject))
@@ -464,6 +514,11 @@ public static class GlobalTypeUtility
         if (outputType == null || targetType == null)
         {
             return false;
+        }
+
+        if (IsGameObjectTransformCompatible(outputType, targetType))
+        {
+            return true;
         }
 
         if (targetType == typeof(GameObject))

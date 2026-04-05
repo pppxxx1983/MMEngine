@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using System.Reflection;
 
 namespace SP
@@ -8,8 +8,7 @@ namespace SP
         [Input] public GameObjectVar inputObj;
         [Output]
         public Trigger trigger;
-
-        public override void Enter()
+        private void OnEnable()
         {
             if (!inputObj.ValidateAndLog(this))
             {
@@ -22,9 +21,14 @@ namespace SP
                 trigger = obj.GetComponent<Trigger>();
             }
 
-            NextService();
+            Next();
         }
 
     }
 }
+
+
+
+
+
 

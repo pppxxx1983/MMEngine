@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEngine;
@@ -55,12 +55,12 @@ namespace SP
             return false;
         }
 
-        public static bool TryValidateSingle(InputType inputType, GameObject obj, Service service, string globalKey, Type expectedValueType, out string error)
+        public static bool TryValidateSingle(InputType inputType, GameObject obj, MonoBehaviour service, string globalKey, Type expectedValueType, out string error)
         {
             error = null;
             switch (inputType)
             {
-                case InputType.Service:
+                case InputType.Output:
                     return TryValidateService(service, expectedValueType, false, out error);
                 case InputType.Global:
                     return TryValidateGlobal(globalKey, expectedValueType, false, out error);
@@ -69,12 +69,12 @@ namespace SP
             }
         }
 
-        public static bool TryValidateList(InputType inputType, List<GameObject> objs, Service service, string globalKey, Type expectedValueType, out string error)
+        public static bool TryValidateList(InputType inputType, List<GameObject> objs, MonoBehaviour service, string globalKey, Type expectedValueType, out string error)
         {
             error = null;
             switch (inputType)
             {
-                case InputType.Service:
+                case InputType.Output:
                     return TryValidateService(service, expectedValueType, true, out error);
                 case InputType.Global:
                     return TryValidateGlobal(globalKey, expectedValueType, true, out error);
@@ -83,7 +83,7 @@ namespace SP
             }
         }
 
-        public static bool TryValidateService(Service service, Type expectedValueType, bool expectsList, out string error)
+        public static bool TryValidateService(MonoBehaviour service, Type expectedValueType, bool expectsList, out string error)
         {
             error = null;
             if (service == null)
@@ -93,7 +93,7 @@ namespace SP
 
             if (!expectsList)
             {
-                return ServiceOutputUtility.TryValidateService(service, expectedValueType, out error);
+                return OutputUtility.TryValidateOutputProvider(service, expectedValueType, out error);
             }
 
             if (expectedValueType == null)
@@ -108,7 +108,7 @@ namespace SP
                 return false;
             }
 
-            if (ServiceOutputUtility.IsListOutputCompatible(outputType, expectedValueType))
+            if (OutputUtility.IsListOutputCompatible(outputType, expectedValueType))
             {
                 return true;
             }
@@ -204,7 +204,7 @@ namespace SP
             return true;
         }
 
-        private static Type GetServiceOutputType(Service service)
+        private static Type GetServiceOutputType(MonoBehaviour service)
         {
             if (service == null)
             {
@@ -213,7 +213,7 @@ namespace SP
 
             FieldInfo outputField;
             string error;
-            if (!ServiceOutputUtility.TryGetOutputField(service.GetType(), out outputField, out error))
+            if (!OutputUtility.TryGetOutputField(service.GetType(), out outputField, out error))
             {
                 return null;
             }
@@ -233,3 +233,5 @@ namespace SP
         }
     }
 }
+
+

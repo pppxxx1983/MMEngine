@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using SP;
 using UnityEngine;
 
@@ -7,19 +7,18 @@ public class Show_List : Service
     // [SharedRef("oopTargets")] 
     [Input]
     public GameObjectListVar source;
-
-    private void OnEnable()
-    {
+        private void OnEnable()
+        {
         if (!source.ValidateAndLog(this))
         {
-            NextService();
+            Next();
             return;
         }
 
         List<GameObject> targets = source.Get();
         if (targets == null || targets.Count == 0)
         {
-            NextService();
+            Next();
             return;
         }
 
@@ -32,6 +31,10 @@ public class Show_List : Service
             target.SetActive(true);
         }
 
-        NextService();
+        Next();
     }
 }
+
+
+
+

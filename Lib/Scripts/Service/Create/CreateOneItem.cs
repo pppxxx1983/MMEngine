@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace SP
 {
@@ -13,13 +13,12 @@ namespace SP
         private bool isCreate;
 
         [Output] private Transform outTransform;
-
-        public override void Enter()
+        private void OnEnable()
         {
             if (isCreateOnly && isCreate)
             {
 
-                NextService();
+                Next();
                 return;
             }
 
@@ -28,8 +27,13 @@ namespace SP
 
 
             isCreate = true;
-            NextService();
+            Next();
         }
     }
 }
+
+
+
+
+
 

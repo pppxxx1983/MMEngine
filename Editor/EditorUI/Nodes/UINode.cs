@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Reflection;
+using System.Text;
 using SP;
 using UnityEditor;
 using UnityEngine;
@@ -108,6 +109,36 @@ namespace PlayableFramework.Editor
             ApplyBorderStateClass();
         }
 
+        public void RefreshBindings()
+        {
+            for (int i = 0; i < paramPoints.Count; i++)
+            {
+                ParamPoint paramPoint = paramPoints[i];
+                if (paramPoint != null)
+                {
+                    paramPoint.RefreshBinding();
+                }
+            }
+        }
+
+        public string GetBindingSignature()
+        {
+            StringBuilder builder = new StringBuilder();
+            for (int i = 0; i < paramPoints.Count; i++)
+            {
+                ParamPoint paramPoint = paramPoints[i];
+                if (paramPoint == null)
+                {
+                    continue;
+                }
+
+                builder.Append(paramPoint.GetBindingSignature());
+                builder.Append('#');
+            }
+
+            return builder.ToString();
+        }
+
         private void RegisterEvents()
         {
             RegisterCallback<PointerDownEvent>(OnNodePointerDown);
@@ -142,7 +173,7 @@ namespace PlayableFramework.Editor
             for (int i = 0; i < outputFields.Count; i++)
             {
                 OutputPoint outputPoint = new OutputPoint();
-                outputPoint.SetType(outputFields[i].FieldType);
+                outputPoint.Setup(service, outputFields[i]);
                 outputPoints.Add(outputPoint);
                 contentLayout.Add(outputPoint);
             }
@@ -150,11 +181,11 @@ namespace PlayableFramework.Editor
             ApplyMirror();
         }
 
-        private void OnMouseDown(Vector2 pointerPosition)
+        private void OnMouseDown(Vector2 pointerPosition, bool additiveSelection)
         {
-            if (!Data.IsSelected)
+            if (!Data.IsSelected || additiveSelection)
             {
-                NodeManager.Instance.SelectNode(this);
+                NodeManager.Instance.SelectNode(this, additiveSelection);
             }
 
             lastPosition = pointerPosition;
@@ -237,7 +268,8 @@ namespace PlayableFramework.Editor
 
             Focus();
             this.CapturePointer(evt.pointerId);
-            OnMouseDown(new Vector2(evt.position.x, evt.position.y));
+            bool additiveSelection = evt.ctrlKey || evt.commandKey;
+            OnMouseDown(new Vector2(evt.position.x, evt.position.y), additiveSelection);
             evt.StopPropagation();
         }
 

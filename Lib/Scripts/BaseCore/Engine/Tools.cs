@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 #if UNITY_LUNA
@@ -12,7 +12,7 @@ namespace SP
         private static Dictionary<int, string> numToString = new Dictionary<int, string>();
 
         /// <summary>
-        /// 做一个存储，避免多次toString
+        /// 鍋氫竴涓瓨鍌紝閬垮厤澶氭toString
         /// </summary>
         /// <param name="num"></param>
         /// <returns></returns>
@@ -30,7 +30,7 @@ namespace SP
         }
 
         /// <summary>
-        /// 绘制贝塞尔曲线
+        /// 缁樺埗璐濆灏旀洸绾?
         /// </summary>
         /// <param name="t"></param>
         /// <param name="target"></param>
@@ -46,12 +46,12 @@ namespace SP
         }
 
         /// <summary>
-        /// 绘制贝塞尔曲线
+        /// 缁樺埗璐濆灏旀洸绾?
         /// </summary>
-        /// <param name="t">需要移动的组件</param>
-        /// <param name="target">目标</param>
-        /// <param name="otherPos">辅助点</param>
-        /// <param name="lerpT">进度</param>
+        /// <param name="t">闇€瑕佺Щ鍔ㄧ殑缁勪欢</param>
+        /// <param name="target">鐩爣</param>
+        /// <param name="otherPos">杈呭姪鐐?/param>
+        /// <param name="lerpT">杩涘害</param>
         /// <returns></returns>
 #if UNITY_LUNA
         public static Vector3 BezierCurve([Ref] this Vector3 start,[Ref] Vector3 target,[Ref] Vector3 otherPos, float lerpT)
@@ -65,7 +65,7 @@ namespace SP
         }
 
         /// <summary>
-        /// 检测两个位置的距离是否在指定范围内，使用平方距离进行计算，传入的距离会被平方，避免开方运算
+        /// 妫€娴嬩袱涓綅缃殑璺濈鏄惁鍦ㄦ寚瀹氳寖鍥村唴锛屼娇鐢ㄥ钩鏂硅窛绂昏繘琛岃绠楋紝浼犲叆鐨勮窛绂讳細琚钩鏂癸紝閬垮厤寮€鏂硅繍绠?
         /// </summary>
         /// <param name="pos1"></param>
         /// <param name="pos2"></param>
@@ -81,7 +81,7 @@ namespace SP
         }
 
         /// <summary>
-        /// 检测两个位置的距离是否在指定范围内，使用平方距离进行计算，传入的距离请确保是平方后的距离，避免开方运算
+        /// 妫€娴嬩袱涓綅缃殑璺濈鏄惁鍦ㄦ寚瀹氳寖鍥村唴锛屼娇鐢ㄥ钩鏂硅窛绂昏繘琛岃绠楋紝浼犲叆鐨勮窛绂昏纭繚鏄钩鏂瑰悗鐨勮窛绂伙紝閬垮厤寮€鏂硅繍绠?
         /// </summary>
         /// <param name="pos1"></param>
         /// <param name="pos2"></param>
@@ -117,3 +117,4 @@ namespace SP
         }
     }
 }
+

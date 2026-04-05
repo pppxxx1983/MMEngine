@@ -38,6 +38,7 @@ namespace PlayableFramework.Editor
             enterLabel = new Label("Enter");
             enterLabel.style.height = RowHeight;
             enterLabel.style.minHeight = RowHeight;
+            enterLabel.style.fontSize = 9f;
             enterLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             enterLabel.style.alignSelf = Align.Center;
             enterLabel.style.position = Position.Relative;
@@ -54,6 +55,7 @@ namespace PlayableFramework.Editor
             nextLabel = new Label("Next");
             nextLabel.style.height = RowHeight;
             nextLabel.style.minHeight = RowHeight;
+            nextLabel.style.fontSize = 9f;
             nextLabel.style.unityTextAlign = TextAnchor.MiddleRight;
             nextLabel.style.alignSelf = Align.Center;
             nextLabel.style.position = Position.Relative;

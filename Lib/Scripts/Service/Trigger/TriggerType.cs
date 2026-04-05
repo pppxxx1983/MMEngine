@@ -1,4 +1,4 @@
-namespace SP
+﻿namespace SP
 {
     public enum TriggerType
     {

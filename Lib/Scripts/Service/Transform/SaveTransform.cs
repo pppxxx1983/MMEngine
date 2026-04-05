@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace SP
@@ -15,12 +15,11 @@ namespace SP
         public TransformListVar source;
 
         [Output] public List<TransformState> outList = new List<TransformState>();
-
-        public override void Enter()
+        private void OnEnable()
         {
             // if (!source.Validate(this) || !output.Validate(this))
             // {
-            //     NextService();
+            //     Next();
             //     return;
             // }
 
@@ -28,7 +27,7 @@ namespace SP
             if (targets == null || targets.Count == 0)
             {
                 Debug.LogWarning("SaveTransform source returned no targets.", this);
-                NextService();
+                Next();
                 return;
             }
 
@@ -49,8 +48,13 @@ namespace SP
             }
 
 
-            NextService();
+            Next();
         }
     }
 }
+
+
+
+
+
 

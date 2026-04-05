@@ -1,4 +1,4 @@
-using UnityEditor;
+﻿using UnityEditor;
 using UnityEngine;
 using SP;
 using System.Reflection;
@@ -200,9 +200,9 @@ namespace PlayableFramework.Editor
             if (raw is MMVar singleVar)
             {
                 inputType = singleVar.GetResolvedInputType();
-                if (inputType == InputType.Service)
+                if (inputType == InputType.Output)
                 {
-                    displayText = BuildServiceDisplayText(singleVar.service);
+                    displayText = BuildOutputDisplayText(singleVar.service);
                     return true;
                 }
 
@@ -228,9 +228,9 @@ namespace PlayableFramework.Editor
             else if (raw is MMListVar listVar)
             {
                 inputType = listVar.GetResolvedInputType();
-                if (inputType == InputType.Service)
+                if (inputType == InputType.Output)
                 {
-                    displayText = BuildServiceDisplayText(listVar.service);
+                    displayText = BuildOutputDisplayText(listVar.service);
                     return true;
                 }
 
@@ -284,15 +284,15 @@ namespace PlayableFramework.Editor
             return true;
         }
 
-        private static string BuildServiceDisplayText(Service service)
+        private static string BuildOutputDisplayText(MonoBehaviour service)
         {
             if (service == null)
             {
-                return "Service<None>";
+                return "Output<None>";
             }
 
             string gameObjectName = service.gameObject != null ? service.gameObject.name : service.name;
-            return gameObjectName + "(" + service.GetType().Name + ")";
+            return gameObjectName + "(Output)";
         }
 
         private static string BuildDefaultDisplayText(GameObject gameObject)
@@ -478,7 +478,7 @@ namespace PlayableFramework.Editor
             if (point.PointType == ConnectionPointType.Input)
             {
                 int idx = point.Node.GetInputPointIndex(point);
-                return point.Node.GetInputFieldNameByIndex(idx); // 这里返回 dataSource
+                return point.Node.GetInputFieldNameByIndex(idx); // 杩欓噷杩斿洖 dataSource
             }
 
             if (point.PointType == ConnectionPointType.Output)
@@ -533,3 +533,4 @@ namespace PlayableFramework.Editor
         }
     }
 }
+

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace SP
@@ -14,8 +14,8 @@ namespace SP
         [ShowIf(nameof(type), (int)InputType.Default)]
         public List<GameObject> objs = new List<GameObject>();
 
-        [ShowIf(nameof(type), (int)InputType.Service)]
-        public Service service;
+        [ShowIf(nameof(type), (int)InputType.Output)]
+        public MonoBehaviour service;
 
         [ShowIf(nameof(type), (int)InputType.Global)]
         public string global;
@@ -28,7 +28,7 @@ namespace SP
         {
             switch (inputType)
             {
-                case InputType.Service:
+                case InputType.Output:
                     return SupportsServiceInput;
                 case InputType.Global:
                     return SupportsGlobalInput;
@@ -46,7 +46,7 @@ namespace SP
 
             if (SupportsServiceInput)
             {
-                return InputType.Service;
+                return InputType.Output;
             }
 
             if (SupportsGlobalInput)
@@ -100,14 +100,20 @@ namespace SP
 
             List<T> results = new List<T>();
 
-            if (resolvedType == InputType.Service)
+            if (resolvedType == InputType.Output)
             {
                 if (service == null)
                 {
                     return results;
                 }
 
-                List<T> serviceValues = service.GetOutputList<T>();
+                List<T> serviceValues;
+                string error;
+                if (!OutputUtility.TryGetOutputListValue(service, out serviceValues, out error))
+                {
+                    return results;
+                }
+
                 if (serviceValues != null)
                 {
                     results.AddRange(serviceValues);
@@ -192,3 +198,5 @@ namespace SP
         }
     }
 }
+
+

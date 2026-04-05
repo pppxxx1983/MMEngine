@@ -229,7 +229,7 @@ namespace PlayableFramework.Editor
             }
         }
 
-        public static void ShowCreateMenu(Vector2 mousePosition, Action<Type> onSelectType)
+        public static void ShowCreateMenu(Vector2 mouseScreenPosition, Action<Type> onSelectType)
         {
             GenericMenu menu = new GenericMenu();
             bool hasAnyEntry = false;
@@ -238,14 +238,14 @@ namespace PlayableFramework.Editor
             if (serviceEntries.Count > 0)
             {
                 hasAnyEntry = true;
-                menu.AddItem(new GUIContent("Service"), false, () => ShowTypePopup("Service", serviceEntries, mousePosition, onSelectType));
+                menu.AddItem(new GUIContent("Service"), false, () => ShowTypePopup("Service", serviceEntries, mouseScreenPosition, onSelectType));
             }
 
             List<MenuEntry> dataEntries = BuildTypeMenuEntries(DataLibRootPath, "Data");
             if (dataEntries.Count > 0)
             {
                 hasAnyEntry = true;
-                menu.AddItem(new GUIContent("Data"), false, () => ShowTypePopup("Data", dataEntries, mousePosition, onSelectType));
+                menu.AddItem(new GUIContent("Data"), false, () => ShowTypePopup("Data", dataEntries, mouseScreenPosition, onSelectType));
             }
 
             if (!hasAnyEntry)
@@ -256,10 +256,9 @@ namespace PlayableFramework.Editor
             menu.ShowAsContext();
         }
 
-        private static void ShowTypePopup(string rootLabel, List<MenuEntry> entries, Vector2 mousePosition, Action<Type> onSelectType)
+        private static void ShowTypePopup(string rootLabel, List<MenuEntry> entries, Vector2 mouseScreenPosition, Action<Type> onSelectType)
         {
-            Vector2 screenPosition = GUIUtility.GUIToScreenPoint(mousePosition);
-            Rect popupAnchor = new Rect(screenPosition.x, screenPosition.y, 1f, 1f);
+            Rect popupAnchor = new Rect(mouseScreenPosition.x, mouseScreenPosition.y, 1f, 1f);
             PopupWindow.Show(popupAnchor, new TypeMenuPopupContent(rootLabel, entries, onSelectType));
         }
 

@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DG.Tweening;
 using LYLib;
 using UnityEngine;
@@ -28,15 +28,14 @@ namespace SP
         private List<Transform> _targets;
         private Transform _target;
         private bool _hasCompleted;
-
-        public override void Enter()
+        private void OnEnable()
         {
             // bool isFlyTargetValid = flyTarget.Get();
             // bool isTargetValid = targetInput.Get();
             // if (!isFlyTargetValid || !isTargetValid)
             // {
             //     Debug.LogError($"ChildsBombFly params are invalid. flyTargetValid={isFlyTargetValid}, targetInputValid={isTargetValid}", this);
-            //     NextService();
+            //     Next();
             //     return;
             // }
 
@@ -45,7 +44,7 @@ namespace SP
             if (_targets == null || _targets.Count == 0 || _target == null)
             {
                 Debug.LogError("ChildsBombFly targets are invalid.", this);
-                NextService();
+                Next();
                 return;
             }
 
@@ -71,7 +70,7 @@ namespace SP
             if (!hasValidChild)
             {
                 _hasCompleted = true;
-                NextService();
+                Next();
             }
         }
 
@@ -101,7 +100,7 @@ namespace SP
 
         }
 
-        public override void Update()
+        private void Update()
         {
             if (_hasCompleted)
                 return;
@@ -145,7 +144,7 @@ namespace SP
             }
 
             _hasCompleted = true;
-            NextService();
+            Next();
         }
 
         private void InitializeContainers()
@@ -169,4 +168,9 @@ namespace SP
 
     }
 }
+
+
+
+
+
 

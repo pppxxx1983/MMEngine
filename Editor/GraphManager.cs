@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Reflection;
 using SP;
@@ -9,8 +9,8 @@ using UnityEngine;
 namespace PlayableFramework.Editor
 {
     /// <summary>
-    /// 全局唯一的节点图管理器。
-    /// 负责节点数据、连线关系和位置保存。
+    /// 鍏ㄥ眬鍞竴鐨勮妭鐐瑰浘绠＄悊鍣ㄣ€?
+    /// 璐熻矗鑺傜偣鏁版嵁銆佽繛绾垮叧绯诲拰浣嶇疆淇濆瓨銆?
     /// </summary>
     internal sealed class GraphManager
     {
@@ -122,12 +122,12 @@ namespace PlayableFramework.Editor
                 Undo.RegisterCreatedObjectUndo(graphObj, "Create Graph");
             }
 
-            // 创建 GameObject 并挂 SceneRefObject
-            // SceneRefObject.OnEnable 会自动注册并确保 ID 唯一
+            // 鍒涘缓 GameObject 骞舵寕 SceneRefObject
+            // SceneRefObject.OnEnable 浼氳嚜鍔ㄦ敞鍐屽苟纭繚 ID 鍞竴
             GameObject nodeObj = graph.CreateNodeObject();
             SceneRefObject sceneRef = nodeObj.AddComponent<SceneRefObject>();
 
-            // 以 SceneRef 生成的唯一 ID 作为 node 的 ID
+            // 浠?SceneRef 鐢熸垚鐨勫敮涓€ ID 浣滀负 node 鐨?ID
             node.Id = sceneRef.Id;
             nodeObj.name = serviceType != null ? serviceType.Name : node.Id;
 
@@ -221,7 +221,7 @@ namespace PlayableFramework.Editor
             if (CurrentAsset == null)
             {
                 string path = EditorUtility.SaveFilePanelInProject(
-                    "Save Node Graph", "NodeGraphLayout", "asset", "选择保存位置");
+                    "Save Node Graph", "NodeGraphLayout", "asset", "閫夋嫨淇濆瓨浣嶇疆");
 
                 if (string.IsNullOrEmpty(path))
                 {
@@ -1022,7 +1022,7 @@ namespace PlayableFramework.Editor
 
             if (point.PointType == ConnectionPointType.Input)
             {
-                Service boundService;
+                MonoBehaviour boundService;
                 if (!TryGetBoundServiceFromInputNode(point.Node, point, out boundService) || boundService == null)
                 {
                     return false;
@@ -1068,12 +1068,12 @@ namespace PlayableFramework.Editor
             MMVar singleVar = inputVarObject as MMVar;
             if (singleVar != null)
             {
-                if (singleVar.type != InputType.Service || singleVar.service == null || !IsServiceFromNode(singleVar.service, expectedSourceNodeId))
+                if (singleVar.type != InputType.Output || singleVar.service == null || !IsOutputProviderFromNode(singleVar.service, expectedSourceNodeId))
                 {
                     return false;
                 }
 
-                Undo.RecordObject(inputService, "Unbind Input Var Service");
+                Undo.RecordObject(inputService, "UnBind Input Var Output");
                 singleVar.type = singleVar.GetFallbackInputType();
                 singleVar.service = null;
                 inputField.SetValue(inputService, inputVarObject);
@@ -1084,12 +1084,12 @@ namespace PlayableFramework.Editor
             MMListVar listVar = inputVarObject as MMListVar;
             if (listVar != null)
             {
-                if (listVar.type != InputType.Service || listVar.service == null || !IsServiceFromNode(listVar.service, expectedSourceNodeId))
+                if (listVar.type != InputType.Output || listVar.service == null || !IsOutputProviderFromNode(listVar.service, expectedSourceNodeId))
                 {
                     return false;
                 }
 
-                Undo.RecordObject(inputService, "Unbind Input Var Service");
+                Undo.RecordObject(inputService, "UnBind Input Var Output");
                 listVar.type = listVar.GetFallbackInputType();
                 listVar.service = null;
                 inputField.SetValue(inputService, inputVarObject);
@@ -1100,7 +1100,7 @@ namespace PlayableFramework.Editor
             return false;
         }
 
-        private static bool IsServiceFromNode(Service service, string nodeId)
+        private static bool IsOutputProviderFromNode(MonoBehaviour service, string nodeId)
         {
             if (service == null || string.IsNullOrEmpty(nodeId))
             {
@@ -1231,7 +1231,7 @@ namespace PlayableFramework.Editor
 
         private bool CanConnectByVariable(GraphNode outputNode, GraphNode inputNode, ConnectionPoint inputPoint)
         {
-            Service outputService;
+            MonoBehaviour outputService;
             FieldInfo outputField;
             Type outputFieldType;
             if (!TryGetOutputBinding(outputNode, out outputService, out outputField, out outputFieldType))
@@ -1250,16 +1250,16 @@ namespace PlayableFramework.Editor
 
             if (expectsList)
             {
-                return ServiceOutputUtility.IsListOutputCompatible(outputFieldType, expectedType);
+                return OutputUtility.IsListOutputCompatible(outputFieldType, expectedType);
             }
 
-            return ServiceOutputUtility.IsOutputCompatible(outputFieldType, expectedType);
+            return OutputUtility.IsOutputCompatible(outputFieldType, expectedType);
         }
 
         private bool BindInputVarToService(GraphNode inputNode, GraphNode outputNode, ConnectionPoint inputPoint, out string reason)
         {
             reason = null;
-            Service outputService;
+            MonoBehaviour outputService;
             FieldInfo outputField;
             Type outputFieldType;
             if (!TryGetOutputBinding(outputNode, out outputService, out outputField, out outputFieldType) || outputService == null)
@@ -1301,13 +1301,13 @@ namespace PlayableFramework.Editor
             MMVar singleVar = inputVarObject as MMVar;
             if (singleVar != null)
             {
-                changed = singleVar.type != InputType.Service || singleVar.service != outputService;
+                changed = singleVar.type != InputType.Output || singleVar.service != outputService;
             }
 
             MMListVar listVar = inputVarObject as MMListVar;
             if (listVar != null)
             {
-                changed = listVar.type != InputType.Service || listVar.service != outputService;
+                changed = listVar.type != InputType.Output || listVar.service != outputService;
             }
 
             if (singleVar == null && listVar == null)
@@ -1322,16 +1322,16 @@ namespace PlayableFramework.Editor
                 return true;
             }
 
-            Undo.RecordObject(inputService, "Bind Input Var Service");
+            Undo.RecordObject(inputService, "Bind Input Var Output");
             if (singleVar != null)
             {
-                singleVar.type = InputType.Service;
+                singleVar.type = InputType.Output;
                 singleVar.service = outputService;
             }
 
             if (listVar != null)
             {
-                listVar.type = InputType.Service;
+                listVar.type = InputType.Output;
                 listVar.service = outputService;
             }
 
@@ -1341,7 +1341,7 @@ namespace PlayableFramework.Editor
             return true;
         }
 
-        private bool TryGetOutputBinding(GraphNode outputNode, out Service outputService, out FieldInfo outputField, out Type outputFieldType)
+        private bool TryGetOutputBinding(GraphNode outputNode, out MonoBehaviour outputService, out FieldInfo outputField, out Type outputFieldType)
         {
             outputService = null;
             outputField = null;
@@ -1364,7 +1364,7 @@ namespace PlayableFramework.Editor
             }
 
             string error;
-            if (!ServiceOutputUtility.TryGetOutputField(outputService.GetType(), out outputField, out error) || outputField == null)
+            if (!OutputUtility.TryGetOutputField(outputService.GetType(), out outputField, out error) || outputField == null)
             {
                 return false;
             }
@@ -1720,7 +1720,7 @@ namespace PlayableFramework.Editor
                 return false;
             }
 
-            Service boundService;
+            MonoBehaviour boundService;
             if (!TryGetBoundServiceFromInputNode(inputNode, inputPoint, out boundService) || boundService == null)
             {
                 return false;
@@ -1742,7 +1742,7 @@ namespace PlayableFramework.Editor
             return true;
         }
 
-        private bool TryGetBoundServiceFromInputNode(GraphNode inputNode, ConnectionPoint inputPoint, out Service boundService)
+        private bool TryGetBoundServiceFromInputNode(GraphNode inputNode, ConnectionPoint inputPoint, out MonoBehaviour boundService)
         {
             boundService = null;
             if (inputNode == null)
@@ -1763,7 +1763,7 @@ namespace PlayableFramework.Editor
             MMVar singleVar = inputVarObject as MMVar;
             if (singleVar != null)
             {
-                if (singleVar.type == InputType.Service && singleVar.service != null)
+                if (singleVar.type == InputType.Output && singleVar.service != null)
                 {
                     boundService = singleVar.service;
                     return true;
@@ -1775,7 +1775,7 @@ namespace PlayableFramework.Editor
             MMListVar listVar = inputVarObject as MMListVar;
             if (listVar != null)
             {
-                if (listVar.type == InputType.Service && listVar.service != null)
+                if (listVar.type == InputType.Output && listVar.service != null)
                 {
                     boundService = listVar.service;
                     return true;
@@ -1809,3 +1809,6 @@ namespace PlayableFramework.Editor
         }
     }
 }
+
+
+

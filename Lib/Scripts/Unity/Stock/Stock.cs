@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
 using System;
@@ -12,14 +12,14 @@ namespace SP
 {
     public class Stock : MonoBehaviour,IMMVarTarget
     {
-        [Header("摆放物品的容器")]
-        [Tooltip("堆放的行数和列数")]
+        [Header("Stock Container")]
+        [Tooltip("鍫嗘斁鐨勮鏁板拰鍒楁暟")]
         public Vector2Int rowColumn = new Vector2Int(3, 2);
 
-        [Tooltip("堆放物品格子的大小")]
+        [Tooltip("Cell size for stacked items")]
         public Vector3 cellSize = new Vector3(0.5f, 0.2f, 0.5f);
 
-        [Tooltip("堆放的初始高度起点 (在这个高度之上开始堆叠)")]
+        [Tooltip("鍫嗘斁鐨勫垵濮嬮珮搴﹁捣鐐?(鍦ㄨ繖涓珮搴︿箣涓婂紑濮嬪爢鍙?")]
         public float startOffsetY = 0f;
 
         private List<Transform> _itemsOfStocked = new List<Transform>(); 
@@ -28,27 +28,27 @@ namespace SP
         [ResourceName(ResourceCategory.Prefab)]
         public List<String> addTypes = new List<String>();
         
-        [Tooltip("能够堆放的最大容量")]
+        [Tooltip("Maximum stock capacity")]
         public int capacity = 40;
 
-        [Header("动画配置")]
-        [Tooltip("物品放入背包的动画样式")]
+        [Header("鍔ㄧ敾閰嶇疆")]
+        [Tooltip("Animation style when item enters stock")]
         public int animationStyle = 0;
 
-        [Tooltip("物品堆放的速度，米每秒")]
+        [Tooltip("鐗╁搧鍫嗘斁鐨勯€熷害锛岀背姣忕")]
         public float stockSpeed = 0.5f;
 
-        [Tooltip("底层物品被抽走后，上方物品掉落补位的动画时长")]
+        [Tooltip("搴曞眰鐗╁搧琚娊璧板悗锛屼笂鏂圭墿鍝佹帀钀借ˉ浣嶇殑鍔ㄧ敾鏃堕暱")]
         public float rearrangeDuration = 0.2f;
 
         public Ease easeFunction = Ease.OutCubic;
 
         public System.Action OnStockCountChanged;
 
-        // 【新增】：脏标记，用于优化同一帧内的多次下落动画
+        // 銆愭柊澧炪€戯細鑴忔爣璁帮紝鐢ㄤ簬浼樺寲鍚屼竴甯у唴鐨勫娆′笅钀藉姩鐢?
         private bool _needRearrange = false;
 
-        // 【新增】：在这一帧的所有逻辑（拿取、放入）都结束后，统一执行一次下落排版
+        // 銆愭柊澧炪€戯細鍦ㄨ繖涓€甯х殑鎵€鏈夐€昏緫锛堟嬁鍙栥€佹斁鍏ワ級閮界粨鏉熷悗锛岀粺涓€鎵ц涓€娆′笅钀芥帓鐗?
         private void LateUpdate()
         {
             if (_needRearrange)
@@ -146,7 +146,7 @@ namespace SP
                         _itemsOfStocked.RemoveAt(index);
                         item.SetParent(null);
                         
-                        // 【核心修改】：不再立刻触发排版，而是打个“需要排版”的标记
+                        // 銆愭牳蹇冧慨鏀广€戯細涓嶅啀绔嬪埢瑙﹀彂鎺掔増锛岃€屾槸鎵撲釜鈥滈渶瑕佹帓鐗堚€濈殑鏍囪
                         RearrangeStock();
                         
                         OnStockCountChanged?.Invoke(); 
@@ -158,13 +158,13 @@ namespace SP
             return null;
         }
 
-        // 打上脏标记，交给 LateUpdate 统一处理
+        // 鎵撲笂鑴忔爣璁帮紝浜ょ粰 LateUpdate 缁熶竴澶勭悊
         private void RearrangeStock()
         {
             _needRearrange = true;
         }
 
-        // 实际执行重新排版的方法
+        // 瀹為檯鎵ц閲嶆柊鎺掔増鐨勬柟娉?
         private void ExecuteRearrange()
         {
             for (int i = 0; i < _itemsOfStocked.Count; i++)
@@ -269,7 +269,7 @@ namespace SP
         }
 
 #if UNITY_EDITOR
-        [Header("编辑器演示")]
+        [Header("Editor Preview")]
         [Space]
         public UnityEngine.Object prefabObj;
         private UnityEngine.Object lastObj;

@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+﻿#if UNITY_EDITOR
 using System.Collections.Generic;
 using System.Reflection;
 using UnityEditor;
@@ -571,7 +571,7 @@ namespace SP.Editor
 
         private static bool IsServiceProperty(SerializedProperty property, InputType currentInputType)
         {
-            return currentInputType == InputType.Service && property != null && property.name == FieldNames.Service;
+            return currentInputType == InputType.Output && property != null && property.name == FieldNames.Service;
         }
 
         private void DrawGlobalKeyPopup(Rect position, SerializedProperty property, System.Type expectedValueType)
@@ -930,15 +930,26 @@ namespace SP.Editor
         {
             Rect fieldRect = new Rect(position.x, position.y, position.width, EditorGUIUtility.singleLineHeight);
             GUIContent label = new GUIContent(GetDefaultObjectLabel());
-            Service currentService = property.objectReferenceValue as Service;
-            Service nextService = EditorGUI.ObjectField(fieldRect, label, currentService, typeof(Service), true) as Service;
+            MonoBehaviour currentService = property.objectReferenceValue as MonoBehaviour;
+            UnityEngine.Object pickedObject = EditorGUI.ObjectField(fieldRect, label, currentService, typeof(UnityEngine.Object), true);
             bool expectsList = IsListFieldType();
-            if (!ReferenceEquals(nextService, currentService))
+            if (pickedObject == null)
             {
-                string assignError = GetServiceValidationError(nextService, expectedValueType, expectsList);
-                if (nextService == null || string.IsNullOrEmpty(assignError))
+                if (currentService != null)
                 {
-                    property.objectReferenceValue = nextService;
+                    property.objectReferenceValue = null;
+                }
+
+                return;
+            }
+
+            MonoBehaviour Next = ResolveOutputProviderSelection(pickedObject, expectedValueType, expectsList);
+            if (Next != null && !ReferenceEquals(Next, currentService))
+            {
+                string assignError = GetServiceValidationError(Next, expectedValueType, expectsList);
+                if (string.IsNullOrEmpty(assignError))
+                {
+                    property.objectReferenceValue = Next;
                 }
             }
 
@@ -954,6 +965,51 @@ namespace SP.Editor
             EditorGUI.HelpBox(helpRect, validationError, MessageType.Error);
         }
 
+        private static MonoBehaviour ResolveOutputProviderSelection(UnityEngine.Object pickedObject, System.Type expectedValueType, bool expectsList)
+        {
+            if (pickedObject == null)
+            {
+                return null;
+            }
+
+            if (pickedObject is MonoBehaviour directProvider && string.IsNullOrEmpty(GetServiceValidationError(directProvider, expectedValueType, expectsList)))
+            {
+                return directProvider;
+            }
+
+            GameObject owner = null;
+            if (pickedObject is GameObject pickedGameObject)
+            {
+                owner = pickedGameObject;
+            }
+            else if (pickedObject is Component pickedComponent)
+            {
+                owner = pickedComponent.gameObject;
+            }
+
+            if (owner == null)
+            {
+                return null;
+            }
+
+            MonoBehaviour[] providers = owner.GetComponents<MonoBehaviour>();
+            for (int i = 0; i < providers.Length; i++)
+            {
+                MonoBehaviour provider = providers[i];
+                if (provider == null)
+                {
+                    continue;
+                }
+
+                if (string.IsNullOrEmpty(GetServiceValidationError(provider, expectedValueType, expectsList)))
+                {
+                    return provider;
+                }
+            }
+
+            return null;
+        }
+
         private static string GetServiceValidationError(SerializedProperty property, System.Type expectedValueType)
         {
             if (property == null)
@@ -961,7 +1017,7 @@ namespace SP.Editor
                 return null;
             }
 
-            Service selectedService = property.objectReferenceValue as Service;
+            MonoBehaviour selectedService = property.objectReferenceValue as MonoBehaviour;
             if (selectedService == null)
             {
                 return null;
@@ -970,7 +1026,7 @@ namespace SP.Editor
             return GetServiceValidationError(selectedService, expectedValueType, false);
         }
 
-        private static string GetServiceValidationError(Service service, System.Type expectedValueType, bool expectsList)
+        private static string GetServiceValidationError(MonoBehaviour service, System.Type expectedValueType, bool expectsList)
         {
             if (service == null)
             {
@@ -980,7 +1036,7 @@ namespace SP.Editor
             if (!expectsList)
             {
                 string error;
-                if (ServiceOutputUtility.TryValidateService(service, expectedValueType, out error))
+                if (OutputUtility.TryValidateOutputProvider(service, expectedValueType, out error))
                 {
                     return null;
                 }
@@ -999,7 +1055,7 @@ namespace SP.Editor
                 return service.GetType().Name + " has no valid [Output] field.";
             }
 
-            if (ServiceOutputUtility.IsListOutputCompatible(outputType, expectedValueType))
+            if (OutputUtility.IsListOutputCompatible(outputType, expectedValueType))
             {
                 return null;
             }
@@ -1007,7 +1063,7 @@ namespace SP.Editor
             return service.GetType().Name + " output type " + outputType.Name + " is not compatible with " + expectedValueType.Name + " list.";
         }
 
-        private static System.Type GetServiceOutputType(Service service)
+        private static System.Type GetServiceOutputType(MonoBehaviour service)
         {
             if (service == null)
             {
@@ -1016,7 +1072,7 @@ namespace SP.Editor
 
             FieldInfo outputField;
             string error;
-            if (!ServiceOutputUtility.TryGetOutputField(service.GetType(), out outputField, out error))
+            if (!OutputUtility.TryGetOutputField(service.GetType(), out outputField, out error))
             {
                 return null;
             }
@@ -1110,3 +1166,5 @@ namespace SP.Editor
     }
 }
 #endif
+
+

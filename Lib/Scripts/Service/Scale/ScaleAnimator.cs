@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace SP
@@ -13,30 +13,29 @@ namespace SP
 
         private float currentTime;
         private List<Transform> _targets;
-
-        public override void Enter()
+        private void OnEnable()
         {
             currentTime = 0f;
             // if (!source.Validate(this))
             // {
-            //     Debug.LogError("ScaleAnimatorByList 参数不全", this);
-            //     NextService();
+            //     Debug.LogError("ScaleAnimatorByList 鍙傛暟涓嶅叏", this);
+            //     Next();
             //     return;
             // }
 
             _targets = source.Get();
             if (_targets == null || _targets.Count == 0)
             {
-                Debug.LogError("ScaleAnimatorByList 参数不全", this);
-                NextService();
+                Debug.LogError("ScaleAnimatorByList 鍙傛暟涓嶅叏", this);
+                Next();
             }
         }
 
-        public override void Update()
+        private void Update()
         {
             if (_targets == null || _targets.Count == 0)
             {
-                NextService();
+                Next();
                 return;
             }
 
@@ -55,9 +54,14 @@ namespace SP
 
             if (progress >= 1f)
             {
-                NextService();
+                Next();
             }
         }
     }
 }
+
+
+
+
+
 

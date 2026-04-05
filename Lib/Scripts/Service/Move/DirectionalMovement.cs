@@ -29,6 +29,7 @@ namespace SP {
         public bool variableSpeed = true; // 【新增】控制是否根据拉动距离改变速度的开关
         
         [Header("动画控制")]
+        [Input]
         public AnimatorVar anim;
         [Tooltip("移动和待机切换")]
         public String runName="Run";
@@ -44,7 +45,7 @@ namespace SP {
         private float _facingRotation;
         private float _rotationVelocity = 0f;
 
-        private void Awake()
+        public override void Init()
         {
             if (!moveTarget.ValidateAndLog(this) || !Direction.ValidateAndLog(this))
             {
@@ -171,3 +172,4 @@ namespace SP {
         }
     }
 }
+

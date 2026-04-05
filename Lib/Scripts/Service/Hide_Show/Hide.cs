@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using SP;
 using UnityEngine;
 
@@ -6,23 +6,26 @@ public class Show : Service
 {
     [Input]
     public TransformVar source;
-
-    private void OnEnable()
-    {
+        private void OnEnable()
+        {
         if (!source.ValidateAndLog(this))
         {
-            NextService();
+            Next();
             return;
         }
 
         Transform target = source.Get();
         if (target == null)
         {
-            NextService();
+            Next();
             return;
         }
 
         target.gameObject.SetActive(false);
-        NextService();
+        Next();
     }
 }
+
+
+
+

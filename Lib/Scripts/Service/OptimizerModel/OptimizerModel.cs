@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -8,10 +8,10 @@ namespace SP
     {
         public TransformVar target;
         public bool openOptimization = true;
-        public override void Enter()
+        private void OnEnable()
         {
             OpenOptimizer(openOptimization);
-            NextService();
+            Next();
         }
 
         public void OpenOptimizer(bool open)
@@ -22,7 +22,7 @@ namespace SP
             Transform targetTransform = target.Get();
             if (targetTransform == null)
             {
-                Debug.LogError("获取对象失败",this);
+                Debug.LogError("鑾峰彇瀵硅薄澶辫触",this);
                 return;
             }
 
@@ -36,9 +36,14 @@ namespace SP
             }
             else
             {
-                Debug.LogError("获取组件失败",this);
+                Debug.LogError("鑾峰彇缁勪欢澶辫触",this);
             }
         }
     }
 }
+
+
+
+
+
 

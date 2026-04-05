@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 
 namespace SP
@@ -7,7 +7,7 @@ namespace SP
     public enum InputType
     {
         Default,
-        Service,
+        Output,
         Global
     }
 
@@ -22,8 +22,8 @@ namespace SP
         [ShowIf(nameof(type), (int)InputType.Default)]
         public GameObject obj;
 
-        [ShowIf(nameof(type), (int)InputType.Service)]
-        public Service service;
+        [ShowIf(nameof(type), (int)InputType.Output)]
+        public MonoBehaviour service;
 
         
         [ShowIf(nameof(type), (int)InputType.Global)]
@@ -37,7 +37,7 @@ namespace SP
         {
             switch (inputType)
             {
-                case InputType.Service:
+                case InputType.Output:
                     return SupportsServiceInput;
                 case InputType.Global:
                     return SupportsGlobalInput;
@@ -55,7 +55,7 @@ namespace SP
 
             if (SupportsServiceInput)
             {
-                return InputType.Service;
+                return InputType.Output;
             }
 
             if (SupportsGlobalInput)
@@ -109,14 +109,21 @@ namespace SP
             base.ValidateAndLog(typeof(T), false, null);
             InputType resolvedType = GetResolvedInputType();
 
-            if (resolvedType == InputType.Service)
+            if (resolvedType == InputType.Output)
             {
                 if (service == null)
                 {
                     return null;
                 }
 
-                return service.GetOutput<T>();
+                T serviceValue;
+                string error;
+                if (OutputUtility.TryGetOutputValue(service, out serviceValue, out error))
+                {
+                    return serviceValue;
+                }
+
+                return null;
             }
 
             if (resolvedType == InputType.Global)
@@ -159,3 +166,5 @@ namespace SP
         }
     }
 }
+
+

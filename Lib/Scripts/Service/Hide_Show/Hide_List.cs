@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using SP;
 using UnityEngine;
@@ -8,20 +8,19 @@ public class Hide_List : Service
     // [SharedRef("oopTargets")] 
     [Input]
     public GameObjectListVar source;
-
-    public override void Enter()
+    private void OnEnable()
     {
 
         if (!source.ValidateAndLog(this))
         {
-            NextService();
+            Next();
             return;
         }
 
         List<GameObject> targets = source.Get();
         if (targets == null || targets.Count == 0)
         {
-            NextService();
+            Next();
             return;
         }
 
@@ -34,7 +33,12 @@ public class Hide_List : Service
             target.SetActive(false);
         }
 
-        NextService();
+        Next();
     }
 }
+
+
+
+
+
 

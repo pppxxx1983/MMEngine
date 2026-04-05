@@ -117,10 +117,33 @@ namespace PlayableFramework.Editor
 
         public void SelectNode(UINode node)
         {
+            SelectNode(node, false);
+        }
+
+        public void SelectNode(UINode node, bool additive)
+        {
             List<UINode> selectedNodes = new List<UINode>();
+            if (additive)
+            {
+                selectedNodes.AddRange(GetSelectedUINodes());
+            }
+
             if (node != null)
             {
-                selectedNodes.Add(node);
+                bool alreadyIncluded = false;
+                for (int i = 0; i < selectedNodes.Count; i++)
+                {
+                    if (selectedNodes[i] == node)
+                    {
+                        alreadyIncluded = true;
+                        break;
+                    }
+                }
+
+                if (!alreadyIncluded)
+                {
+                    selectedNodes.Add(node);
+                }
             }
 
             SetSelection(selectedNodes);

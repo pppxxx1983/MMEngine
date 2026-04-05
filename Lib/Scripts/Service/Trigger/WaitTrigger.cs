@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace SP
 {
@@ -8,17 +8,16 @@ namespace SP
         public TriggerVar trigger1;
         [Input]
         public TriggerVar trigger2;
-
-        public override void Enter()
+        private void OnEnable()
         {
             // if (!trigger1.Validate(this) || !trigger2.Validate(this))
             // {
-            //     NextService();
+            //     Next();
             //     return;
             // }
         }
 
-        public override void Update()
+        private void Update()
         {
             if (!trigger1.ValidateAndLog(this) || !trigger2.ValidateAndLog(this))
             {
@@ -28,17 +27,22 @@ namespace SP
             Trigger rightTrigger = trigger2.Get();
             if (leftTrigger == null || rightTrigger == null)
             {
-                NextService();
+                Next();
 
                 return;
             }
 
             if (leftTrigger.IsTrigger(rightTrigger))
             {
-                NextService();
+                Next();
                 return;
             }
         }
     }
 }
+
+
+
+
+
 

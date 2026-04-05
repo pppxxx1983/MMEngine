@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
@@ -16,14 +16,12 @@ namespace SP
         public List<GameObject> targets;
         public Color noCollider_color=Color.white;
         public Color collider_color=new Color(0,225,255);
-        
-        
-        public override void Enter()
+        private void OnEnable()
         {
             if (trigger1.Count == 0 || trigger2.Count == 0 || targets.Count ==0 )
             {
                 Debug.LogError($"[{GetType().Name}] Missing required references.");
-                NextService();
+                Next();
                 return;
             }
         }
@@ -43,7 +41,7 @@ namespace SP
                     tm.color = color;
             }
         }
-        public override void Update()
+        private void Update()
         {
             bool isEnter = false;
             for (int i = 0; i < trigger1.Count; i++)
@@ -65,10 +63,15 @@ namespace SP
             SetColor(isEnter?collider_color:noCollider_color);
             if (isEnter)
             {
-                NextService();
+                Next();
                 return;
             }
         }
     }
 }
+
+
+
+
+
 

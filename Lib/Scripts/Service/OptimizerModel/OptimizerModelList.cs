@@ -1,4 +1,4 @@
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -9,10 +9,10 @@ namespace SP
         [SharedRef("oopTragets")]
         public TransformListVar target ;
         public bool openOptimization = true;
-        public override void Enter()
+        private void OnEnable()
         {
             OpenOptimizer(openOptimization);
-            NextService();
+            Next();
         }
         public void OpenOptimizer(bool open)
         {
@@ -41,4 +41,9 @@ namespace SP
         }
     }
 }
+
+
+
+
+
 

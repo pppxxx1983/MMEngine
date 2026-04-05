@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.Reflection;
+using System.Text;
 using SP;
 using SP.SceneRefs;
 using UnityEditor;
@@ -13,10 +15,13 @@ namespace PlayableFramework.Editor
     {
         private const string AssetKey = "PlayableFramework.EditorUI.NodePosAsset";
         private static bool suppressHierarchySync;
+        private static readonly List<ClipboardNodeData> clipboardNodes = new List<ClipboardNodeData>();
+        private static int pasteSequence;
 
         private bool isSyncingSelection;
         private bool isBoxSelecting;
         private bool isCanvasPanning;
+        private int lastNodeStructureSignature;
         private Vector2 boxStart;
         private Vector2 boxCurrent;
         private Vector2 panStartMouse;
@@ -27,7 +32,17 @@ namespace PlayableFramework.Editor
         private HelpBox saveTip;
         private VisualElement viewport;
         private NodePosAsset posAsset;
+        private readonly Dictionary<string, string> nodeBindingSignatures = new Dictionary<string, string>();
         private readonly Dictionary<string, Vector2> pendingPosMap = new Dictionary<string, Vector2>();
+        private Vector2 lastPointerPanelPosition;
+        private bool hasLastPointerPanelPosition;
+
+        private sealed class ClipboardNodeData
+        {
+            public string nodeId;
+            public Vector2 position;
+            public string parentNodeId;
+        }
 
         [MenuItem("Tools/PlayableFramework/Editor UI")]
         private static void OpenWindow()
@@ -38,8 +53,6 @@ namespace PlayableFramework.Editor
         [Shortcut("PlayableFramework/Save Node Pos", typeof(EditorUIWindow), KeyCode.S, ShortcutModifiers.Action)]
         private static void OnSaveNodePosShortcut()
         {
-            Debug.Log("EditorUI window Ctrl+S shortcut triggered.");
-
             EditorUIWindow window = EditorWindow.focusedWindow as EditorUIWindow;
             if (window == null)
             {
@@ -61,6 +74,30 @@ namespace PlayableFramework.Editor
             window.DeleteSelection();
         }
 
+        [Shortcut("PlayableFramework/Copy Selected Nodes", typeof(EditorUIWindow), KeyCode.C, ShortcutModifiers.Action)]
+        private static void OnCopySelectedNodesShortcut()
+        {
+            EditorUIWindow window = EditorWindow.focusedWindow as EditorUIWindow;
+            if (window == null)
+            {
+                return;
+            }
+
+            window.CopySelection();
+        }
+
+        [Shortcut("PlayableFramework/Paste Selected Nodes", typeof(EditorUIWindow), KeyCode.V, ShortcutModifiers.Action)]
+        private static void OnPasteSelectedNodesShortcut()
+        {
+            EditorUIWindow window = EditorWindow.focusedWindow as EditorUIWindow;
+            if (window == null)
+            {
+                return;
+            }
+
+            window.PasteSelection();
+        }
+
         private void OnEnable()
         {
             NodeManager.Instance.Changed += RebuildNodes;
@@ -79,6 +116,8 @@ namespace PlayableFramework.Editor
         private void OnInspectorUpdate()
         {
             UIManager.Instance.VarLine?.MarkDirtyRepaint();
+            RefreshChangedSelectedNodes();
+            TrySyncNodesIfStructureChanged();
         }
 
         public void CreateGUI()
@@ -144,6 +183,18 @@ namespace PlayableFramework.Editor
             ApplyCanvasOffset();
             RefreshAssetTip();
 
+            SyncNodes();
+        }
+
+        private void TrySyncNodesIfStructureChanged()
+        {
+            int currentSignature = CalculateNodeStructureSignature();
+            if (currentSignature == 0 || currentSignature == lastNodeStructureSignature)
+            {
+                return;
+            }
+
+            lastNodeStructureSignature = currentSignature;
             SyncNodes();
         }
 
@@ -233,6 +284,45 @@ namespace PlayableFramework.Editor
             }
         }
 
+        private void RefreshChangedSelectedNodes()
+        {
+            List<UINode> selectedNodes = NodeManager.Instance.GetSelectedUINodes();
+            if (selectedNodes == null || selectedNodes.Count == 0)
+            {
+                return;
+            }
+
+            bool anyRefreshed = false;
+            for (int i = 0; i < selectedNodes.Count; i++)
+            {
+                UINode node = selectedNodes[i];
+                if (node == null || node.Data == null || string.IsNullOrEmpty(node.Data.Id))
+                {
+                    continue;
+                }
+
+                string currentSignature = node.GetBindingSignature();
+                if (nodeBindingSignatures.TryGetValue(node.Data.Id, out string previousSignature) &&
+                    previousSignature == currentSignature)
+                {
+                    continue;
+                }
+
+                nodeBindingSignatures[node.Data.Id] = currentSignature;
+                node.RefreshBindings();
+                node.Refresh();
+                anyRefreshed = true;
+            }
+
+            if (!anyRefreshed)
+            {
+                return;
+            }
+
+            UIManager.Instance.VarLine?.MarkDirtyRepaint();
+            UIManager.Instance.Curve?.MarkDirtyRepaint();
+        }
+
         private void OnSelectionChange()
         {
             if (isSyncingSelection)
@@ -306,8 +396,10 @@ namespace PlayableFramework.Editor
                 surface.Focus();
             }
 
+            UpdateLastPointerPosition(evt.mousePosition);
             Vector2 mousePosition = canvas.WorldToLocal(evt.mousePosition);
-            EditorUITypeMenu.ShowCreateMenu(mousePosition, selectedType =>
+            Vector2 mouseScreenPosition = GUIUtility.GUIToScreenPoint(evt.mousePosition);
+            EditorUITypeMenu.ShowCreateMenu(mouseScreenPosition, selectedType =>
             {
                 if (selectedType == null)
                 {
@@ -335,6 +427,14 @@ namespace PlayableFramework.Editor
         private void OnAssetChanged(ChangeEvent<Object> evt)
         {
             posAsset = evt.newValue as NodePosAsset;
+            Graph graph = FindSceneGraph();
+            if (graph != null)
+            {
+                Undo.RecordObject(graph, "Assign Graph NodePosAsset");
+                graph.nodePosAsset = posAsset;
+                EditorUtility.SetDirty(graph);
+            }
+
             if (posAsset != null)
             {
                 EditorPrefs.SetString(AssetKey, AssetDatabase.GetAssetPath(posAsset));
@@ -360,6 +460,15 @@ namespace PlayableFramework.Editor
             AssetDatabase.CreateAsset(asset, path);
             AssetDatabase.SaveAssets();
             posAsset = asset;
+
+            Graph graph = FindSceneGraph();
+            if (graph != null)
+            {
+                Undo.RecordObject(graph, "Assign Graph NodePosAsset");
+                graph.nodePosAsset = posAsset;
+                EditorUtility.SetDirty(graph);
+            }
+
             EditorPrefs.SetString(AssetKey, path);
 
             if (assetField != null)
@@ -384,6 +493,19 @@ namespace PlayableFramework.Editor
 
         private void LoadAsset()
         {
+            Graph graph = FindSceneGraph();
+            if (graph != null && graph.nodePosAsset != null)
+            {
+                posAsset = graph.nodePosAsset as NodePosAsset;
+                string graphAssetPath = AssetDatabase.GetAssetPath(posAsset);
+                if (!string.IsNullOrEmpty(graphAssetPath))
+                {
+                    EditorPrefs.SetString(AssetKey, graphAssetPath);
+                }
+
+                return;
+            }
+
             string path = EditorPrefs.GetString(AssetKey, string.Empty);
             if (!string.IsNullOrEmpty(path))
             {
@@ -407,6 +529,7 @@ namespace PlayableFramework.Editor
             Graph graph = FindSceneGraph();
             if (graph == null)
             {
+                lastNodeStructureSignature = 0;
                 NodeManager.Instance.SetUINodes(nodes);
                 return;
             }
@@ -456,7 +579,68 @@ namespace PlayableFramework.Editor
             }
 
             pendingPosMap.Clear();
+            nodeBindingSignatures.Clear();
+            lastNodeStructureSignature = CalculateNodeStructureSignature(graph);
             NodeManager.Instance.SetUINodes(nodes);
+        }
+
+        private int CalculateNodeStructureSignature()
+        {
+            return CalculateNodeStructureSignature(FindSceneGraph());
+        }
+
+        private static int CalculateNodeStructureSignature(Graph graph)
+        {
+            if (graph == null)
+            {
+                return 0;
+            }
+
+            Service[] services = graph.GetComponentsInChildren<Service>(true);
+            if (services == null || services.Length == 0)
+            {
+                return 1;
+            }
+
+            StringBuilder builder = new StringBuilder(services.Length * 64);
+            for (int i = 0; i < services.Length; i++)
+            {
+                Service service = services[i];
+                if (service == null)
+                {
+                    continue;
+                }
+
+                builder.Append(service.GetType().AssemblyQualifiedName);
+                builder.Append('|');
+
+                FieldInfo[] fields = service.GetType().GetFields(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+                for (int j = 0; j < fields.Length; j++)
+                {
+                    FieldInfo field = fields[j];
+                    if (field == null)
+                    {
+                        continue;
+                    }
+
+                    bool isInput = field.IsDefined(typeof(InputAttribute), true);
+                    bool isOutput = field.IsDefined(typeof(OutputAttribute), true);
+                    if (!isInput && !isOutput)
+                    {
+                        continue;
+                    }
+
+                    builder.Append(isInput ? "I:" : "O:");
+                    builder.Append(field.Name);
+                    builder.Append(':');
+                    builder.Append(field.FieldType.AssemblyQualifiedName);
+                    builder.Append(';');
+                }
+
+                builder.Append('#');
+            }
+
+            return builder.ToString().GetHashCode();
         }
 
         private Dictionary<string, Vector2> BuildPosMap(string graphId)
@@ -640,6 +824,7 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            UpdateLastPointerPosition(evt.position);
             if (evt.target != surface && evt.target != canvas)
             {
                 return;
@@ -691,6 +876,7 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            UpdateLastPointerPosition(evt.position);
             if (isCanvasPanning && surface.HasPointerCapture(evt.pointerId))
             {
                 Vector2 currentMouse = new Vector2(evt.position.x, evt.position.y);
@@ -844,6 +1030,273 @@ namespace PlayableFramework.Editor
             if (curve != null)
             {
                 curve.SelectInRect(boxRect);
+            }
+        }
+
+        private void CopySelection()
+        {
+            clipboardNodes.Clear();
+
+            List<UINode> selectedNodes = NodeManager.Instance.GetSelectedUINodes();
+            if (selectedNodes == null || selectedNodes.Count == 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < selectedNodes.Count; i++)
+            {
+                UINode node = selectedNodes[i];
+                if (node == null || node.Data == null || string.IsNullOrEmpty(node.Data.Id))
+                {
+                    continue;
+                }
+
+                clipboardNodes.Add(new ClipboardNodeData
+                {
+                    nodeId = node.Data.Id,
+                    position = node.Data.Position,
+                    parentNodeId = node.Data.ParentId
+                });
+            }
+
+            pasteSequence = 0;
+        }
+
+        private void PasteSelection()
+        {
+            if (clipboardNodes.Count == 0)
+            {
+                return;
+            }
+
+            Graph graph = FindSceneGraph();
+            if (graph == null)
+            {
+                return;
+            }
+
+            List<ClipboardNodeData> validClipboardNodes = new List<ClipboardNodeData>();
+            Vector2 anchorMin = new Vector2(float.MaxValue, float.MaxValue);
+            for (int i = 0; i < clipboardNodes.Count; i++)
+            {
+                ClipboardNodeData entry = clipboardNodes[i];
+                if (entry == null || string.IsNullOrEmpty(entry.nodeId))
+                {
+                    continue;
+                }
+
+                if (!GameObjectOperator.TryGetNodeObject(entry.nodeId, out GameObject sourceNodeObject) || sourceNodeObject == null)
+                {
+                    continue;
+                }
+
+                validClipboardNodes.Add(entry);
+                anchorMin.x = Mathf.Min(anchorMin.x, entry.position.x);
+                anchorMin.y = Mathf.Min(anchorMin.y, entry.position.y);
+            }
+
+            if (validClipboardNodes.Count == 0)
+            {
+                clipboardNodes.Clear();
+                return;
+            }
+
+            pasteSequence++;
+            Vector2 pasteAnchor = GetPasteAnchorPosition();
+            if (!hasLastPointerPanelPosition)
+            {
+                pasteAnchor += new Vector2(32f * pasteSequence, 32f * pasteSequence);
+            }
+
+            Dictionary<string, GameObject> oldIdToNewNode = new Dictionary<string, GameObject>();
+            Dictionary<UnityEngine.Object, UnityEngine.Object> objectRemap = new Dictionary<UnityEngine.Object, UnityEngine.Object>();
+
+            for (int i = 0; i < validClipboardNodes.Count; i++)
+            {
+                ClipboardNodeData entry = validClipboardNodes[i];
+                GameObjectOperator.TryGetNodeObject(entry.nodeId, out GameObject sourceNodeObject);
+                if (sourceNodeObject == null)
+                {
+                    continue;
+                }
+
+                GameObject clonedNodeObject = Instantiate(sourceNodeObject, sourceNodeObject.transform.parent);
+                clonedNodeObject.name = sourceNodeObject.name;
+                Undo.RegisterCreatedObjectUndo(clonedNodeObject, "Paste Nodes");
+                SceneNodeFactory.EnsureSceneNodeId(clonedNodeObject);
+
+                oldIdToNewNode[entry.nodeId] = clonedNodeObject;
+                RegisterCloneMappings(sourceNodeObject, clonedNodeObject, objectRemap);
+            }
+
+            for (int i = 0; i < validClipboardNodes.Count; i++)
+            {
+                ClipboardNodeData entry = validClipboardNodes[i];
+                if (!oldIdToNewNode.TryGetValue(entry.nodeId, out GameObject clonedNodeObject) || clonedNodeObject == null)
+                {
+                    continue;
+                }
+
+                Transform targetParent = ResolvePasteParent(graph.transform, entry.parentNodeId, oldIdToNewNode);
+                if (clonedNodeObject.transform.parent != targetParent)
+                {
+                    Undo.SetTransformParent(clonedNodeObject.transform, targetParent, "Paste Nodes");
+                }
+
+                RemapObjectReferences(clonedNodeObject, objectRemap);
+
+                string newNodeId = SceneNodeFactory.GetSceneNodeId(clonedNodeObject);
+                if (string.IsNullOrEmpty(newNodeId))
+                {
+                    continue;
+                }
+
+                pendingPosMap[newNodeId] = pasteAnchor + (entry.position - anchorMin);
+            }
+
+            SyncNodes();
+
+            List<UINode> pastedNodes = new List<UINode>();
+            foreach (KeyValuePair<string, GameObject> pair in oldIdToNewNode)
+            {
+                string newNodeId = SceneNodeFactory.GetSceneNodeId(pair.Value);
+                UINode node = NodeManager.Instance.GetUINode(newNodeId);
+                if (node != null)
+                {
+                    pastedNodes.Add(node);
+                }
+            }
+
+            NodeManager.Instance.SetSelection(pastedNodes);
+            SavePos();
+        }
+
+        private Vector2 GetPasteAnchorPosition()
+        {
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas != null && hasLastPointerPanelPosition)
+            {
+                return canvas.WorldToLocal(lastPointerPanelPosition);
+            }
+
+            List<UINode> selectedNodes = NodeManager.Instance.GetSelectedUINodes();
+            if (selectedNodes != null && selectedNodes.Count > 0)
+            {
+                return selectedNodes[0].Data.Position + new Vector2(32f, 32f);
+            }
+
+            return new Vector2(120f, 120f);
+        }
+
+        private void UpdateLastPointerPosition(Vector2 panelPosition)
+        {
+            lastPointerPanelPosition = panelPosition;
+            hasLastPointerPanelPosition = true;
+        }
+
+        private static Transform ResolvePasteParent(Transform graphTransform, string originalParentNodeId, Dictionary<string, GameObject> oldIdToNewNode)
+        {
+            if (!string.IsNullOrEmpty(originalParentNodeId) &&
+                oldIdToNewNode.TryGetValue(originalParentNodeId, out GameObject remappedParent) &&
+                remappedParent != null)
+            {
+                return remappedParent.transform;
+            }
+
+            if (!string.IsNullOrEmpty(originalParentNodeId) &&
+                GameObjectOperator.TryGetNodeObject(originalParentNodeId, out GameObject existingParent) &&
+                existingParent != null)
+            {
+                return existingParent.transform;
+            }
+
+            return graphTransform;
+        }
+
+        private static void RegisterCloneMappings(GameObject sourceRoot, GameObject cloneRoot, Dictionary<UnityEngine.Object, UnityEngine.Object> objectRemap)
+        {
+            if (sourceRoot == null || cloneRoot == null)
+            {
+                return;
+            }
+
+            Transform[] sourceTransforms = sourceRoot.GetComponentsInChildren<Transform>(true);
+            Transform[] cloneTransforms = cloneRoot.GetComponentsInChildren<Transform>(true);
+            int transformCount = Mathf.Min(sourceTransforms.Length, cloneTransforms.Length);
+            for (int i = 0; i < transformCount; i++)
+            {
+                Transform sourceTransform = sourceTransforms[i];
+                Transform cloneTransform = cloneTransforms[i];
+                if (sourceTransform == null || cloneTransform == null)
+                {
+                    continue;
+                }
+
+                objectRemap[sourceTransform] = cloneTransform;
+                objectRemap[sourceTransform.gameObject] = cloneTransform.gameObject;
+
+                Component[] sourceComponents = sourceTransform.GetComponents<Component>();
+                Component[] cloneComponents = cloneTransform.GetComponents<Component>();
+                int componentCount = Mathf.Min(sourceComponents.Length, cloneComponents.Length);
+                for (int j = 0; j < componentCount; j++)
+                {
+                    Component sourceComponent = sourceComponents[j];
+                    Component cloneComponent = cloneComponents[j];
+                    if (sourceComponent == null || cloneComponent == null)
+                    {
+                        continue;
+                    }
+
+                    objectRemap[sourceComponent] = cloneComponent;
+                }
+            }
+        }
+
+        private static void RemapObjectReferences(GameObject clonedNodeObject, Dictionary<UnityEngine.Object, UnityEngine.Object> objectRemap)
+        {
+            if (clonedNodeObject == null || objectRemap == null || objectRemap.Count == 0)
+            {
+                return;
+            }
+
+            Component[] components = clonedNodeObject.GetComponentsInChildren<Component>(true);
+            for (int i = 0; i < components.Length; i++)
+            {
+                Component component = components[i];
+                if (component == null)
+                {
+                    continue;
+                }
+
+                SerializedObject serializedObject = new SerializedObject(component);
+                SerializedProperty iterator = serializedObject.GetIterator();
+                bool enterChildren = true;
+                bool changed = false;
+                while (iterator.Next(enterChildren))
+                {
+                    enterChildren = false;
+                    if (iterator.propertyType != SerializedPropertyType.ObjectReference)
+                    {
+                        continue;
+                    }
+
+                    UnityEngine.Object currentReference = iterator.objectReferenceValue;
+                    if (currentReference == null || !objectRemap.TryGetValue(currentReference, out UnityEngine.Object remappedReference))
+                    {
+                        continue;
+                    }
+
+                    iterator.objectReferenceValue = remappedReference;
+                    changed = true;
+                }
+
+                if (!changed)
+                {
+                    continue;
+                }
+
+                serializedObject.ApplyModifiedPropertiesWithoutUndo();
+                EditorUtility.SetDirty(component);
             }
         }
 

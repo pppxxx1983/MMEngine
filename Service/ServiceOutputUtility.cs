@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Reflection;
@@ -6,7 +6,7 @@ using SP;
 using UnityEngine;
 
 
-public static class ServiceOutputUtility
+public static class OutputUtility
 {
     private const BindingFlags OutputFieldFlags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
 
@@ -74,45 +74,45 @@ public static class ServiceOutputUtility
         return false;
     }
 
-    public static bool TryGetOutputValue<T>(Service service, out T value, out string error) where T : UnityEngine.Object
+    public static bool TryGetOutputValue<T>(MonoBehaviour outputProvider, out T value, out string error) where T : UnityEngine.Object
     {
         value = null;
         error = null;
-        if (service == null)
+        if (outputProvider == null)
         {
-            error = "Service is null.";
+            error = "Output provider is null.";
             return false;
         }
 
         FieldInfo outputField;
-        if (!TryGetCompatibleOutputField(service.GetType(), typeof(T), out outputField, out error))
+        if (!TryGetCompatibleOutputField(outputProvider.GetType(), typeof(T), out outputField, out error))
         {
             return false;
         }
 
         object rawValue;
-        if (!TryGetResolvedOutputValue(service, outputField, typeof(T), false, out rawValue, out error))
+        if (!TryGetResolvedOutputValue(outputProvider, outputField, typeof(T), false, out rawValue, out error))
         {
             return false;
         }
 
         if (rawValue == null)
         {
-            error = service.GetType().Name + " output value is null.";
+            error = outputProvider.GetType().Name + " output value is null.";
             return false;
         }
 
         UnityEngine.Object unityObject = rawValue as UnityEngine.Object;
         if (unityObject == null)
         {
-            error = service.GetType().Name + " output value is not a Unity object.";
+            error = outputProvider.GetType().Name + " output value is not a Unity object.";
             return false;
         }
 
         object convertedValue;
         if (!GlobalTypeUtility.TryConvertObject(unityObject, outputField.FieldType, typeof(T), out convertedValue))
         {
-            error = service.GetType().Name + " output value cannot be converted to " + typeof(T).Name + ".";
+            error = outputProvider.GetType().Name + " output value cannot be converted to " + typeof(T).Name + ".";
             return false;
         }
 
@@ -122,40 +122,40 @@ public static class ServiceOutputUtility
             return true;
         }
 
-        error = service.GetType().Name + " output value cannot be converted to " + typeof(T).Name + ".";
+        error = outputProvider.GetType().Name + " output value cannot be converted to " + typeof(T).Name + ".";
         return false;
     }
 
-    public static bool TryValidateService(Service service, Type targetType, out string error)
+    public static bool TryValidateOutputProvider(MonoBehaviour outputProvider, Type targetType, out string error)
     {
         error = null;
-        if (service == null)
+        if (outputProvider == null)
         {
             return true;
         }
 
         FieldInfo outputField;
-        return TryGetCompatibleOutputField(service.GetType(), targetType, out outputField, out error);
+        return TryGetCompatibleOutputField(outputProvider.GetType(), targetType, out outputField, out error);
     }
 
-    public static bool TryGetOutputValue(Service service, Type targetType, out object value, out string error)
+    public static bool TryGetOutputValue(MonoBehaviour outputProvider, Type targetType, out object value, out string error)
     {
         value = null;
         error = null;
-        if (service == null)
+        if (outputProvider == null)
         {
-            error = "Service is null.";
+            error = "Output provider is null.";
             return false;
         }
 
         FieldInfo outputField;
-        if (!TryGetCompatibleOutputField(service.GetType(), targetType, out outputField, out error))
+        if (!TryGetCompatibleOutputField(outputProvider.GetType(), targetType, out outputField, out error))
         {
             return false;
         }
 
         object rawValue;
-        if (!TryGetResolvedOutputValue(service, outputField, targetType, false, out rawValue, out error))
+        if (!TryGetResolvedOutputValue(outputProvider, outputField, targetType, false, out rawValue, out error))
         {
             return false;
         }
@@ -167,7 +167,7 @@ public static class ServiceOutputUtility
                 return true;
             }
 
-            error = service.GetType().Name + " output value is null.";
+            error = outputProvider.GetType().Name + " output value is null.";
             return false;
         }
 
@@ -195,34 +195,34 @@ public static class ServiceOutputUtility
             return true;
         }
 
-        error = service.GetType().Name + " output value cannot be converted to " + targetType.Name + ".";
+        error = outputProvider.GetType().Name + " output value cannot be converted to " + targetType.Name + ".";
         return false;
     }
 
-    public static bool TryGetOutputListValue<T>(Service service, out List<T> values, out string error) where T : UnityEngine.Object
+    public static bool TryGetOutputListValue<T>(MonoBehaviour outputProvider, out List<T> values, out string error) where T : UnityEngine.Object
     {
         values = new List<T>();
         error = null;
-        if (service == null)
+        if (outputProvider == null)
         {
-            error = "Service is null.";
+            error = "Output provider is null.";
             return false;
         }
 
         FieldInfo outputField;
-        if (!TryGetOutputField(service.GetType(), out outputField, out error))
+        if (!TryGetOutputField(outputProvider.GetType(), out outputField, out error))
         {
             return false;
         }
 
         if (!IsListOutputCompatible(outputField.FieldType, typeof(T)))
         {
-            error = service.GetType().Name + " output type " + outputField.FieldType.Name + " is not compatible with " + typeof(T).Name + " list.";
+            error = outputProvider.GetType().Name + " output type " + outputField.FieldType.Name + " is not compatible with " + typeof(T).Name + " list.";
             return false;
         }
 
         object rawValue;
-        if (!TryGetResolvedOutputValue(service, outputField, typeof(T), true, out rawValue, out error))
+        if (!TryGetResolvedOutputValue(outputProvider, outputField, typeof(T), true, out rawValue, out error))
         {
             return false;
         }
@@ -235,7 +235,7 @@ public static class ServiceOutputUtility
         IEnumerable enumerable = rawValue as IEnumerable;
         if (enumerable == null)
         {
-            error = service.GetType().Name + " output value is not a list.";
+            error = outputProvider.GetType().Name + " output value is not a list.";
             return false;
         }
 
@@ -271,6 +271,11 @@ public static class ServiceOutputUtility
             return false;
         }
 
+        if (GlobalTypeUtility.IsGameObjectTransformCompatible(outputType, targetType))
+        {
+            return true;
+        }
+
         if (targetType == typeof(GameObject))
         {
             return outputType == typeof(GameObject) || typeof(Component).IsAssignableFrom(outputType);
@@ -300,71 +305,24 @@ public static class ServiceOutputUtility
         return IsOutputCompatible(elementType, targetType);
     }
 
-    private static bool TryGetResolvedOutputValue(Service service, FieldInfo outputField, Type targetType, bool expectsList, out object value, out string error)
+    private static bool TryGetResolvedOutputValue(MonoBehaviour outputProvider, FieldInfo outputField, Type targetType, bool expectsList, out object value, out string error)
     {
         value = null;
         error = null;
-        if (service == null)
+        if (outputProvider == null)
         {
-            error = "Service is null.";
+            error = "Output provider is null.";
             return false;
         }
 
         if (outputField == null)
         {
-            error = service.GetType().Name + " has no [Output] field.";
+            error = outputProvider.GetType().Name + " has no [Output] field.";
             return false;
         }
 
-        if (service.OutputSourceType == ServiceOutputSourceType.Global)
-        {
-            return TryGetGlobalOutputValue(service, outputField, targetType, expectsList, out value, out error);
-        }
-
-        value = outputField.GetValue(service);
+        value = outputField.GetValue(outputProvider);
         return true;
-    }
-
-    private static bool TryGetGlobalOutputValue(Service service, FieldInfo outputField, Type targetType, bool expectsList, out object value, out string error)
-    {
-        value = null;
-        error = null;
-        if (service == null)
-        {
-            error = "Service is null.";
-            return false;
-        }
-
-        if (GlobalContext.ins == null)
-        {
-            error = "Global instance is missing.";
-            return false;
-        }
-
-        if (string.IsNullOrEmpty(service.OutputGlobalKey))
-        {
-            error = service.GetType().Name + " output global key is empty.";
-            return false;
-        }
-
-        if (expectsList)
-        {
-            if (GlobalContext.ins.TryGetListValue(service.OutputGlobalKey, targetType, out value))
-            {
-                return true;
-            }
-
-            error = service.GetType().Name + " failed to resolve global list key " + service.OutputGlobalKey + ".";
-            return false;
-        }
-
-        if (GlobalContext.ins.TryGetValue(service.OutputGlobalKey, targetType, out value))
-        {
-            return true;
-        }
-
-        error = service.GetType().Name + " failed to resolve global key " + service.OutputGlobalKey + ".";
-        return false;
     }
 
     private static Type GetListElementType(Type outputType)
@@ -391,3 +349,4 @@ public static class ServiceOutputUtility
         return null;
     }
 }
+

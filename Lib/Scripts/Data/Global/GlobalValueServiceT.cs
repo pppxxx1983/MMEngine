@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using UnityEngine;
 
 namespace SP
@@ -24,16 +24,13 @@ namespace SP
 
             SetOutputValue(DefaultValue);
         }
-
-        protected override void OnEnable()
+        private void OnEnable()
         {
-            base.OnEnable();
             RefreshOutputValue();
         }
 
-        public override void Update()
+        private void Update()
         {
-            base.Update();
             RefreshOutputValue();
         }
 
@@ -45,3 +42,7 @@ namespace SP
 #endif
     }
 }
+
+
+
+

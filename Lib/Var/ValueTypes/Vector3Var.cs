@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace SP
 {
@@ -17,17 +17,18 @@ namespace SP
         {
             base.ValidateAndLog(typeof(Vector3), false, null);
 
-            if (type == InputType.Service)
+            if (type == InputType.Output)
             {
                 if (service == null)
                 {
                     return value;
                 }
 
-                Vector3 serviceValue;
-                if (service.TryGetOutputValue(out serviceValue))
+                object rawValue;
+                string error;
+                if (OutputUtility.TryGetOutputValue(service, typeof(Vector3), out rawValue, out error) && rawValue is Vector3 resolvedValue)
                 {
-                    return serviceValue;
+                    return resolvedValue;
                 }
 
                 return value;
@@ -63,3 +64,4 @@ namespace SP
         }
     }
 }
+

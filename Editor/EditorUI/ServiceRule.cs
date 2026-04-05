@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using System.Collections;
 using System.Reflection;
 using SP;
@@ -127,7 +127,7 @@ namespace PlayableFramework.Editor
                 return false;
             }
 
-            Service outputService;
+            MonoBehaviour outputService;
             FieldInfo outputField;
             Type outputFieldType;
             bool outputIsList;
@@ -150,18 +150,18 @@ namespace PlayableFramework.Editor
             {
                 if (expectsList)
                 {
-                    return ServiceOutputUtility.IsListOutputCompatible(outputFieldType, expectedType);
+                    return OutputUtility.IsListOutputCompatible(outputFieldType, expectedType);
                 }
 
-                return ServiceOutputUtility.IsOutputCompatible(outputFieldType, expectedType);
+                return OutputUtility.IsOutputCompatible(outputFieldType, expectedType);
             }
 
             if (expectsList)
             {
-                return ServiceOutputUtility.IsListOutputCompatible(outputFieldType, expectedType);
+                return OutputUtility.IsListOutputCompatible(outputFieldType, expectedType);
             }
 
-            return outputFieldType != null && expectedType != null && (expectedType.IsAssignableFrom(outputFieldType) || ServiceOutputUtility.IsOutputCompatible(outputFieldType, expectedType));
+            return outputFieldType != null && expectedType != null && (expectedType.IsAssignableFrom(outputFieldType) || OutputUtility.IsOutputCompatible(outputFieldType, expectedType));
         }
 
         public bool TryApplyValue(LinkPoint outputPoint, LinkPoint inputPoint)
@@ -171,7 +171,7 @@ namespace PlayableFramework.Editor
                 return false;
             }
 
-            Service outputService;
+            MonoBehaviour outputService;
             FieldInfo outputField;
             Type outputFieldType;
             bool outputIsList;
@@ -218,14 +218,14 @@ namespace PlayableFramework.Editor
 
             object inputVarObject = inputField.GetValue(inputService);
             MMVar singleVar = inputVarObject as MMVar;
-            if (singleVar != null && singleVar.type == InputType.Service && singleVar.service != null)
+            if (singleVar != null && singleVar.type == InputType.Output && singleVar.service != null)
             {
                 outputNodeId = SceneNodeFactory.GetSceneNodeId(singleVar.service.gameObject);
                 return !string.IsNullOrEmpty(outputNodeId);
             }
 
             MMListVar listVar = inputVarObject as MMListVar;
-            if (listVar != null && listVar.type == InputType.Service && listVar.service != null)
+            if (listVar != null && listVar.type == InputType.Output && listVar.service != null)
             {
                 outputNodeId = SceneNodeFactory.GetSceneNodeId(listVar.service.gameObject);
                 return !string.IsNullOrEmpty(outputNodeId);
@@ -266,12 +266,12 @@ namespace PlayableFramework.Editor
             }
 
             object inputVarObject = inputField.GetValue(inputService);
-            Service boundService = null;
-            if (inputVarObject is MMVar singleVar && singleVar.type == InputType.Service)
+            MonoBehaviour boundService = null;
+            if (inputVarObject is MMVar singleVar && singleVar.type == InputType.Output)
             {
                 boundService = singleVar.service;
             }
-            else if (inputVarObject is MMListVar listVar && listVar.type == InputType.Service)
+            else if (inputVarObject is MMListVar listVar && listVar.type == InputType.Output)
             {
                 boundService = listVar.service;
             }
@@ -386,7 +386,7 @@ namespace PlayableFramework.Editor
             return Equals(left, right);
         }
 
-        private bool TryGetOutputBinding(LinkPoint outputPoint, out Service outputService, out FieldInfo outputField, out Type outputFieldType, out bool expectsList)
+        private bool TryGetOutputBinding(LinkPoint outputPoint, out MonoBehaviour outputService, out FieldInfo outputField, out Type outputFieldType, out bool expectsList)
         {
             outputService = GetService(outputPoint != null ? outputPoint.NodeId : null);
             outputField = null;
@@ -460,7 +460,7 @@ namespace PlayableFramework.Editor
             return null;
         }
 
-        private static bool BindInputVarToService(Service inputService, FieldInfo inputField, bool expectsList, Service outputService)
+        private static bool BindInputVarToService(Service inputService, FieldInfo inputField, bool expectsList, MonoBehaviour outputService)
         {
             if (inputService == null || inputField == null || outputService == null)
             {
@@ -475,8 +475,8 @@ namespace PlayableFramework.Editor
 
             if (inputVarObject is MMVar singleVar)
             {
-                UnityEditor.Undo.RecordObject(inputService, "Bind Input Var Service");
-                singleVar.type = InputType.Service;
+                UnityEditor.Undo.RecordObject(inputService, "Bind Input Var Output");
+                singleVar.type = InputType.Output;
                 singleVar.service = outputService;
                 inputField.SetValue(inputService, inputVarObject);
                 UnityEditor.EditorUtility.SetDirty(inputService);
@@ -485,8 +485,8 @@ namespace PlayableFramework.Editor
 
             if (inputVarObject is MMListVar listVar)
             {
-                UnityEditor.Undo.RecordObject(inputService, "Bind Input Var Service");
-                listVar.type = InputType.Service;
+                UnityEditor.Undo.RecordObject(inputService, "Bind Input Var Output");
+                listVar.type = InputType.Output;
                 listVar.service = outputService;
                 inputField.SetValue(inputService, inputVarObject);
                 UnityEditor.EditorUtility.SetDirty(inputService);
@@ -496,7 +496,7 @@ namespace PlayableFramework.Editor
             return false;
         }
 
-        private static bool AssignOutputValueToInput(Service inputService, FieldInfo inputField, Type expectedType, bool expectsList, Service outputService)
+        private static bool AssignOutputValueToInput(Service inputService, FieldInfo inputField, Type expectedType, bool expectsList, MonoBehaviour outputService)
         {
             if (inputService == null || inputField == null || outputService == null || expectedType == null)
             {
@@ -515,7 +515,7 @@ namespace PlayableFramework.Editor
             return true;
         }
 
-        private static bool TryResolveAssignableOutputValue(Service outputService, Type expectedType, bool expectsList, out object value)
+        private static bool TryResolveAssignableOutputValue(MonoBehaviour outputService, Type expectedType, bool expectsList, out object value)
         {
             value = null;
             if (outputService == null || expectedType == null)
@@ -526,12 +526,12 @@ namespace PlayableFramework.Editor
             if (!expectsList)
             {
                 string error;
-                return ServiceOutputUtility.TryGetOutputValue(outputService, expectedType, out value, out error);
+                return OutputUtility.TryGetOutputValue(outputService, expectedType, out value, out error);
             }
 
             FieldInfo outputField;
             string fieldError;
-            if (!ServiceOutputUtility.TryGetOutputField(outputService.GetType(), out outputField, out fieldError) || outputField == null)
+            if (!OutputUtility.TryGetOutputField(outputService.GetType(), out outputField, out fieldError) || outputField == null)
             {
                 return false;
             }
@@ -592,3 +592,6 @@ namespace PlayableFramework.Editor
         }
     }
 }
+
+
+
