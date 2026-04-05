@@ -104,8 +104,6 @@ The main background file stays focused on the final current result.
 - Global single-instance UI objects should live in `UIManager`.
 - Do not pass global single-instance UI objects through parameters.
 - Use `UIManager.Instance.xxx` directly.
-- Nodes should only keep one runtime copy in `NodeManager`.
-- Other objects should read node data from `NodeManager.Instance`.
 - Keep rule documents clean:
   final result in `EditorUI_Context.md`
   iteration history in `EditorUI_History.md`

@@ -58,7 +58,6 @@
 - `NodeManager`
   Manages `NodeData`.
   No default sample node is created.
-  Owns the only runtime node collection.
 
 - `NodeData`
   Pure node data.
@@ -128,8 +127,6 @@
 - Global single-instance UI objects must live in `UIManager`.
 - Do not pass global single-instance UI objects through parameters.
 - Use `UIManager.Instance.xxx` directly.
-- Nodes must only have one runtime copy in `NodeManager`.
-- Other objects that need node data must use `NodeManager.Instance`.
 - Text stays vertically centered by default.
 - Only change horizontal alignment when needed.
 
@@ -164,14 +161,12 @@ Global single-instance UI objects live in UIManager.
 EditorUITypeMenu is the standalone Service/Data create menu.
 SceneNodeFactory creates scene nodes and ensures Root, ResourceCenter, GlobalContext, GlobalAudioManager, then Graph last, and assigns root.resourceCenter/root.audioManager.
 NodeManager manages NodeData and does not create a default sample node.
-NodeManager owns the only runtime node collection.
 NodeData is pure data and includes NodeBorderState.
 UINode is the node view control and uses UINode.uss.
 HLayout and VLayout are shared base layouts with expand/stretch/center/debug-border defaults.
 Line draws the preview line in canvas local coordinates.
 UIManager owns the preview-line state.
 Do not pass global single-instance UI objects through parameters.
-Other objects should read node data from NodeManager.Instance.
 LinkPoint toggle mouse down starts line mode.
 LinkPoint only keeps the point itself.
 EnterNextPoint owns the Enter/Next labels and supports SetMirror(bool).
