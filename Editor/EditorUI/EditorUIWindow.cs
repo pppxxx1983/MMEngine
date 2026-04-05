@@ -537,10 +537,10 @@ namespace PlayableFramework.Editor
             string graphId = SceneNodeFactory.EnsureSceneNodeId(graph.gameObject);
             Dictionary<string, Vector2> posMap = BuildPosMap(graphId);
 
-            Service[] services = graph.GetComponentsInChildren<Service>(true);
+            List<Service> services = CollectGraphServices(graph);
             HashSet<int> addedObjects = new HashSet<int>();
             int order = 0;
-            for (int i = 0; i < services.Length; i++)
+            for (int i = 0; i < services.Count; i++)
             {
                 Service service = services[i];
                 if (service == null)
@@ -596,14 +596,14 @@ namespace PlayableFramework.Editor
                 return 0;
             }
 
-            Service[] services = graph.GetComponentsInChildren<Service>(true);
-            if (services == null || services.Length == 0)
+            List<Service> services = CollectGraphServices(graph);
+            if (services == null || services.Count == 0)
             {
                 return 1;
             }
 
-            StringBuilder builder = new StringBuilder(services.Length * 64);
-            for (int i = 0; i < services.Length; i++)
+            StringBuilder builder = new StringBuilder(services.Count * 64);
+            for (int i = 0; i < services.Count; i++)
             {
                 Service service = services[i];
                 if (service == null)
@@ -641,6 +641,60 @@ namespace PlayableFramework.Editor
             }
 
             return builder.ToString().GetHashCode();
+        }
+
+        private static List<Service> CollectGraphServices(Graph graph)
+        {
+            List<Service> services = new List<Service>();
+            if (graph == null)
+            {
+                return services;
+            }
+
+            Service[] childServices = graph.GetComponentsInChildren<Service>(true);
+            if (childServices != null)
+            {
+                for (int i = 0; i < childServices.Length; i++)
+                {
+                    Service service = childServices[i];
+                    if (service != null)
+                    {
+                        services.Add(service);
+                    }
+                }
+            }
+
+            IReadOnlyList<Transform> groupParents = graph.GroupParents;
+            if (groupParents == null)
+            {
+                return services;
+            }
+
+            for (int i = 0; i < groupParents.Count; i++)
+            {
+                Transform groupParent = groupParents[i];
+                if (groupParent == null)
+                {
+                    continue;
+                }
+
+                Service[] groupServices = groupParent.GetComponentsInChildren<Service>(true);
+                if (groupServices == null)
+                {
+                    continue;
+                }
+
+                for (int j = 0; j < groupServices.Length; j++)
+                {
+                    Service service = groupServices[j];
+                    if (service != null)
+                    {
+                        services.Add(service);
+                    }
+                }
+            }
+
+            return services;
         }
 
         private Dictionary<string, Vector2> BuildPosMap(string graphId)
@@ -744,29 +798,69 @@ namespace PlayableFramework.Editor
             Curve curve = UIManager.Instance.Curve;
             if (curve == null || !curve.HasSelection())
             {
+                VarLine varLine = UIManager.Instance.VarLine;
+                if (varLine == null || !varLine.HasSelection())
+                {
+                    return;
+                }
+
+                List<VarLine.SelectedBinding> bindings = varLine.GetSelectedBindings();
+                bool anyCleared = false;
+                for (int i = 0; i < bindings.Count; i++)
+                {
+                    VarLine.SelectedBinding binding = bindings[i];
+                    if (!ServiceRule.Instance.TryClearInputValue(binding.InputNodeId, binding.InputFieldName))
+                    {
+                        continue;
+                    }
+
+                    anyCleared = true;
+                }
+
+                varLine.ClearSelection();
+                if (anyCleared)
+                {
+                    SyncNodes();
+                    SavePos();
+                }
+
                 return;
             }
 
             List<string> childIds = curve.GetSelectedChildIds();
-            if (childIds.Count == 0)
+            List<Curve.SelectedLink> selectedLinks = curve.GetSelectedLinks();
+            if (selectedLinks.Count == 0)
             {
                 return;
             }
 
-            for (int i = 0; i < childIds.Count; i++)
+            bool anyChanged = false;
+            for (int i = 0; i < selectedLinks.Count; i++)
             {
-                string childId = childIds[i];
-                if (string.IsNullOrEmpty(childId))
+                Curve.SelectedLink link = selectedLinks[i];
+                if (string.IsNullOrEmpty(link.ParentId) || string.IsNullOrEmpty(link.ChildId))
                 {
                     continue;
                 }
 
-                GameObjectOperator.MoveNodeToGraph(childId);
+                if (ServiceRule.Instance.TryClearFlowLink(link.ParentId, link.ChildId))
+                {
+                    anyChanged = true;
+                    continue;
+                }
+
+                if (GameObjectOperator.MoveNodeToGraph(link.ChildId))
+                {
+                    anyChanged = true;
+                }
             }
 
             curve.ClearSelection();
-            SyncNodes();
-            SavePos();
+            if (anyChanged)
+            {
+                SyncNodes();
+                SavePos();
+            }
         }
 
         private void SyncSceneSelectionFromNode()
@@ -819,6 +913,7 @@ namespace PlayableFramework.Editor
             VisualElement surface = evt.currentTarget as VisualElement;
             VisualElement canvas = UIManager.Instance.Canvas;
             Curve curve = UIManager.Instance.Curve;
+            VarLine varLine = UIManager.Instance.VarLine;
             if (canvas == null || surface == null)
             {
                 return;
@@ -851,6 +946,21 @@ namespace PlayableFramework.Editor
             Vector2 canvasLocalPosition = canvas.WorldToLocal(pointerPosition);
             if (curve != null && curve.TrySelectAt(canvasLocalPosition))
             {
+                if (varLine != null)
+                {
+                    varLine.ClearSelection();
+                }
+                evt.StopPropagation();
+                return;
+            }
+
+            if (varLine != null && varLine.TrySelectAt(canvasLocalPosition))
+            {
+                if (curve != null)
+                {
+                    curve.ClearSelection();
+                }
+
                 evt.StopPropagation();
                 return;
             }
@@ -858,6 +968,11 @@ namespace PlayableFramework.Editor
             if (curve != null)
             {
                 curve.ClearSelection();
+            }
+
+            if (varLine != null)
+            {
+                varLine.ClearSelection();
             }
 
             boxStart = canvasLocalPosition;
@@ -1003,6 +1118,7 @@ namespace PlayableFramework.Editor
             VisualElement canvas = UIManager.Instance.Canvas;
             SelectionBox selectionBox = UIManager.Instance.SelectionBox;
             Curve curve = UIManager.Instance.Curve;
+            VarLine varLine = UIManager.Instance.VarLine;
             if (canvas == null || selectionBox == null)
             {
                 return;
@@ -1030,6 +1146,11 @@ namespace PlayableFramework.Editor
             if (curve != null)
             {
                 curve.SelectInRect(boxRect);
+            }
+
+            if (varLine != null)
+            {
+                varLine.SelectInRect(boxRect);
             }
         }
 

@@ -9,6 +9,9 @@ namespace PlayableFramework.Editor
 {
     public sealed class OutputPoint : HLayout
     {
+        private const float RowHeight = 18f;
+        private const float SlotFontSize = 8f;
+
         private readonly Label typeLabel;
         private readonly LinkPoint point;
 
@@ -19,14 +22,18 @@ namespace PlayableFramework.Editor
             style.flexShrink = 1f;
             style.justifyContent = Justify.FlexEnd;
             style.marginBottom = 2f;
-            style.minHeight = 18f;
+            style.height = RowHeight;
+            style.minHeight = RowHeight;
+            style.maxHeight = RowHeight;
 
             typeLabel = new Label();
             typeLabel.style.flexGrow = 1f;
             typeLabel.style.flexShrink = 1f;
             typeLabel.style.unityTextAlign = TextAnchor.MiddleRight;
-            typeLabel.style.fontSize = 9f;
-            typeLabel.style.minHeight = 18f;
+            typeLabel.style.fontSize = SlotFontSize;
+            typeLabel.style.height = RowHeight;
+            typeLabel.style.minHeight = RowHeight;
+            typeLabel.style.maxHeight = RowHeight;
             typeLabel.style.whiteSpace = WhiteSpace.NoWrap;
             typeLabel.style.overflow = Overflow.Hidden;
             typeLabel.style.textOverflow = TextOverflow.Ellipsis;

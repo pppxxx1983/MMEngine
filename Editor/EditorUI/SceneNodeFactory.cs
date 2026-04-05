@@ -8,9 +8,6 @@ namespace PlayableFramework.Editor
 {
     internal static class SceneNodeFactory
     {
-        private const string GroupGraphParentName = "Group";
-        private const string SpecialGraphParentName = "Special";
-
         public static GameObject CreateSceneNode(Type serviceType)
         {
             if (serviceType == null || !typeof(Component).IsAssignableFrom(serviceType))
@@ -45,18 +42,7 @@ namespace PlayableFramework.Editor
 
             EnsureSceneNodeId(graph.gameObject);
 
-            Transform parentTransform = graph.transform;
-            if (typeof(IGroupNode).IsAssignableFrom(serviceType))
-            {
-                parentTransform = GameObjectOperator.EnsureChildTransform(graph.transform, GroupGraphParentName);
-            }
-            else if (typeof(ISpecialNode).IsAssignableFrom(serviceType))
-            {
-                parentTransform = GameObjectOperator.EnsureChildTransform(graph.transform, SpecialGraphParentName);
-            }
-
             GameObject nodeObject = graph.CreateNodeObject();
-            nodeObject.transform.SetParent(parentTransform, false);
 
             Undo.RegisterCreatedObjectUndo(nodeObject, "Create Node");
             Undo.AddComponent<SceneRefObject>(nodeObject);
@@ -67,9 +53,42 @@ namespace PlayableFramework.Editor
                 component = Undo.AddComponent(nodeObject, serviceType);
             }
 
+            Transform parentTransform = ResolveParentTransform(root.transform, graph.transform, component);
+            nodeObject.transform.SetParent(parentTransform, false);
+
+            if (component is IGroupNode && parentTransform != null && parentTransform != graph.transform)
+            {
+                Undo.RecordObject(graph, "Register Group Parent");
+                graph.RegisterGroupParent(parentTransform);
+                EditorUtility.SetDirty(graph);
+            }
+
             nodeObject.name = serviceType.Name;
             Selection.activeGameObject = nodeObject;
             return nodeObject;
+        }
+
+        private static Transform ResolveParentTransform(Transform rootTransform, Transform graphTransform, Component component)
+        {
+            if (rootTransform == null || graphTransform == null)
+            {
+                return null;
+            }
+
+            if (component is IGroupNode groupNode)
+            {
+                string parentName = string.IsNullOrWhiteSpace(groupNode.GroupParentName)
+                    ? null
+                    : groupNode.GroupParentName.Trim();
+                if (string.IsNullOrEmpty(parentName))
+                {
+                    return graphTransform;
+                }
+
+                return GameObjectOperator.EnsureChildTransform(rootTransform, parentName);
+            }
+
+            return graphTransform;
         }
 
         public static string GetSceneNodeId(GameObject nodeObject)

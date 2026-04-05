@@ -1,11 +1,23 @@
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
-using System.Collections.Generic;
 
 namespace PlayableFramework.Editor
 {
     public sealed class Curve : VisualElement
     {
+        public readonly struct SelectedLink
+        {
+            public SelectedLink(string parentId, string childId)
+            {
+                ParentId = parentId;
+                ChildId = childId;
+            }
+
+            public string ParentId { get; }
+            public string ChildId { get; }
+        }
+
         private static readonly Color DefaultColor = new Color(0.3f, 0.75f, 1f, 0.9f);
         private static readonly Color SelectedColor = new Color(1f, 0.82f, 0.28f, 0.95f);
         private const float Width = 2f;
@@ -83,52 +95,42 @@ namespace PlayableFramework.Editor
         public List<string> GetSelectedChildIds()
         {
             List<string> childIds = new List<string>();
+            List<SelectedLink> links = GetSelectedLinks();
+            for (int i = 0; i < links.Count; i++)
+            {
+                childIds.Add(links[i].ChildId);
+            }
+
+            return childIds;
+        }
+
+        public List<SelectedLink> GetSelectedLinks()
+        {
+            List<SelectedLink> links = new List<SelectedLink>();
             foreach (string curveKey in selectedCurves)
             {
                 int separatorIndex = curveKey.IndexOf("->");
-                if (separatorIndex < 0 || separatorIndex + 2 >= curveKey.Length)
+                if (separatorIndex <= 0 || separatorIndex + 2 >= curveKey.Length)
                 {
                     continue;
                 }
 
-                childIds.Add(curveKey.Substring(separatorIndex + 2));
+                links.Add(new SelectedLink(
+                    curveKey.Substring(0, separatorIndex),
+                    curveKey.Substring(separatorIndex + 2)));
             }
 
-            return childIds;
+            return links;
         }
 
         public void SelectInRect(Rect rect)
         {
             selectedCurves.Clear();
 
-            VisualElement canvas = UIManager.Instance.Canvas;
-            if (canvas == null)
+            List<CurveHit> hits = BuildHits();
+            for (int i = 0; i < hits.Count; i++)
             {
-                MarkDirtyRepaint();
-                return;
-            }
-
-            int nodeCount = NodeManager.Instance.UINodes.Count;
-            for (int i = 0; i < nodeCount; i++)
-            {
-                UINode childNode = NodeManager.Instance.UINodes[i];
-                if (childNode == null || childNode.Data == null || string.IsNullOrEmpty(childNode.Data.ParentId))
-                {
-                    continue;
-                }
-
-                UINode parentNode = NodeManager.Instance.GetUINode(childNode.Data.ParentId);
-                if (parentNode == null)
-                {
-                    continue;
-                }
-
-                CurveHit hit;
-                if (!TryBuildHit(parentNode, childNode, canvas, out hit))
-                {
-                    continue;
-                }
-
+                CurveHit hit = hits[i];
                 if (!IntersectsRect(rect, hit))
                 {
                     continue;
@@ -142,43 +144,11 @@ namespace PlayableFramework.Editor
 
         private void OnGenerateVisualContent(MeshGenerationContext context)
         {
-            VisualElement canvas = UIManager.Instance.Canvas;
-            if (canvas == null)
-            {
-                return;
-            }
-
             Painter2D painter = context.painter2D;
-
-            int nodeCount = NodeManager.Instance.UINodes.Count;
-            for (int i = 0; i < nodeCount; i++)
+            List<CurveHit> hits = BuildHits();
+            for (int i = 0; i < hits.Count; i++)
             {
-                UINode childData = NodeManager.Instance.UINodes[i];
-                if (childData == null || childData.Data == null || string.IsNullOrEmpty(childData.Data.ParentId))
-                {
-                    continue;
-                }
-
-                UINode parentNode = NodeManager.Instance.GetUINode(childData.Data.ParentId);
-                UINode childNode = NodeManager.Instance.GetUINode(childData.Data.Id);
-                if (parentNode == null || childNode == null)
-                {
-                    continue;
-                }
-
-                LinkPoint parentPoint = parentNode.NextPoint;
-                LinkPoint childPoint = childNode.EnterPoint;
-                if (parentPoint == null || childPoint == null)
-                {
-                    continue;
-                }
-
-                CurveHit hit;
-                if (!TryBuildHit(parentNode, childNode, canvas, out hit))
-                {
-                    continue;
-                }
-
+                CurveHit hit = hits[i];
                 bool isSelected = IsSelected(hit.ParentId, hit.ChildId);
                 painter.strokeColor = isSelected ? SelectedColor : DefaultColor;
                 painter.lineWidth = isSelected ? SelectedWidth : Width;
@@ -199,37 +169,13 @@ namespace PlayableFramework.Editor
 
         private bool TryGetHit(Vector2 localPosition, out CurveHit bestHit)
         {
-            VisualElement canvas = UIManager.Instance.Canvas;
-            if (canvas == null)
-            {
-                bestHit = default(CurveHit);
-                return false;
-            }
-
             float bestDistance = float.MaxValue;
             bestHit = default(CurveHit);
 
-            int nodeCount = NodeManager.Instance.UINodes.Count;
-            for (int i = 0; i < nodeCount; i++)
+            List<CurveHit> hits = BuildHits();
+            for (int i = 0; i < hits.Count; i++)
             {
-                UINode childNode = NodeManager.Instance.UINodes[i];
-                if (childNode == null || childNode.Data == null || string.IsNullOrEmpty(childNode.Data.ParentId))
-                {
-                    continue;
-                }
-
-                UINode parentNode = NodeManager.Instance.GetUINode(childNode.Data.ParentId);
-                if (parentNode == null)
-                {
-                    continue;
-                }
-
-                CurveHit hit;
-                if (!TryBuildHit(parentNode, childNode, canvas, out hit))
-                {
-                    continue;
-                }
-
+                CurveHit hit = hits[i];
                 float distance = GetBezierDistance(localPosition, hit);
                 if (distance > HitDistance || distance >= bestDistance)
                 {
@@ -241,6 +187,65 @@ namespace PlayableFramework.Editor
             }
 
             return bestDistance < float.MaxValue;
+        }
+
+        private static List<CurveHit> BuildHits()
+        {
+            List<CurveHit> hits = new List<CurveHit>();
+            VisualElement canvas = UIManager.Instance.Canvas;
+            if (canvas == null)
+            {
+                return hits;
+            }
+
+            int nodeCount = NodeManager.Instance.UINodes.Count;
+            for (int i = 0; i < nodeCount; i++)
+            {
+                UINode node = NodeManager.Instance.UINodes[i];
+                if (node == null || node.Data == null || string.IsNullOrEmpty(node.Data.Id))
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(node.Data.ParentId))
+                {
+                    UINode parentNode = NodeManager.Instance.GetUINode(node.Data.ParentId);
+                    if (TryBuildHit(parentNode, node, canvas, out CurveHit hierarchyHit))
+                    {
+                        hits.Add(hierarchyHit);
+                    }
+                }
+
+                List<string> guideEnterIds;
+                if (ServiceRule.Instance.TryGetGuideEnterIds(node.Data.Id, out guideEnterIds))
+                {
+                    for (int j = 0; j < guideEnterIds.Count; j++)
+                    {
+                        string guideEnterId = guideEnterIds[j];
+                        UINode enterParentNode = NodeManager.Instance.GetUINode(guideEnterId);
+                        if (TryBuildHit(enterParentNode, node, canvas, out CurveHit enterHit))
+                        {
+                            hits.Add(enterHit);
+                        }
+                    }
+                }
+
+                List<string> guideNextIds;
+                if (ServiceRule.Instance.TryGetGuideNextIds(node.Data.Id, out guideNextIds))
+                {
+                    for (int j = 0; j < guideNextIds.Count; j++)
+                    {
+                        string guideNextId = guideNextIds[j];
+                        UINode nextChildNode = NodeManager.Instance.GetUINode(guideNextId);
+                        if (TryBuildHit(node, nextChildNode, canvas, out CurveHit nextHit))
+                        {
+                            hits.Add(nextHit);
+                        }
+                    }
+                }
+            }
+
+            return hits;
         }
 
         private static bool TryBuildHit(UINode parentNode, UINode childNode, VisualElement canvas, out CurveHit hit)

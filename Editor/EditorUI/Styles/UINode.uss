@@ -49,8 +49,11 @@
 .ui-node Label {
     color: white;
     -unity-font-style: bold;
-    white-space: normal;
+    font-size: 8px;
+    white-space: nowrap;
     -unity-text-align: middle-center;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 /* 外层 Toggle 容器（清空默认样式） */
 .ui-link-toggle {

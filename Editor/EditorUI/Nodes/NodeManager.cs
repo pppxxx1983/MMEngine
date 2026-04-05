@@ -122,6 +122,12 @@ namespace PlayableFramework.Editor
 
         public void SelectNode(UINode node, bool additive)
         {
+            if (!additive)
+            {
+                UIManager.Instance.Curve?.ClearSelection();
+                UIManager.Instance.VarLine?.ClearSelection();
+            }
+
             List<UINode> selectedNodes = new List<UINode>();
             if (additive)
             {

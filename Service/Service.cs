@@ -35,6 +35,7 @@ namespace SP
                     obj.OpenAllMono();
                 }
             }
+
         }
 
         public void SetServiceActive(bool active)
@@ -59,4 +60,3 @@ namespace SP
         }
     }
 }
-

@@ -9,8 +9,11 @@ using UnityEngine.UIElements;
 
 namespace PlayableFramework.Editor
 {
-    public sealed class ParamPoint : LinkPoint
+    public sealed class InputPoint : LinkPoint
     {
+        private const float RowHeight = 18f;
+        private const float SlotFontSize = 8f;
+
         private Service boundService;
         private FieldInfo boundFieldInfo;
         private SerializedObject serializedObject;
@@ -19,13 +22,13 @@ namespace PlayableFramework.Editor
         private string typePropertyPath;
         private PropertyField propertyField;
 
-        public ParamPoint() : base(LinkPointType.Input)
+        public InputPoint() : base(LinkPointType.Input)
         {
             style.alignSelf = Align.Stretch;
             style.flexGrow = 1f;
             style.flexShrink = 1f;
             style.marginBottom = 2f;
-            style.minHeight = 18f;
+            SetFixedHeight(this);
 
             fieldRoot = new HLayout();
             fieldRoot.style.flexGrow = 1f;
@@ -33,6 +36,7 @@ namespace PlayableFramework.Editor
             fieldRoot.style.justifyContent = Justify.FlexStart;
             fieldRoot.style.alignItems = Align.Center;
             fieldRoot.style.marginLeft = 6f;
+            SetFixedHeight(fieldRoot);
             Add(fieldRoot);
             SetMirror(false);
             RegisterCallback<SerializedPropertyChangeEvent>(OnSerializedPropertyChange);
@@ -84,8 +88,9 @@ namespace PlayableFramework.Editor
             propertyField.label = ObjectNames.NicifyVariableName(fieldInfo.Name);
             propertyField.style.flexGrow = 1f;
             propertyField.style.flexShrink = 1f;
-            fieldRoot.Add(propertyField);
+            fieldRoot.Add(WrapRowField(propertyField));
             propertyField.Bind(serializedObject);
+            CompactField(propertyField);
         }
 
         public void RefreshBinding()
@@ -166,6 +171,7 @@ namespace PlayableFramework.Editor
                 typeField.style.width = 90f;
                 typeField.style.flexShrink = 0f;
                 typeField.style.marginRight = 6f;
+                SetFixedHeight(typeField);
                 fieldRoot.Add(typeField);
             }
 
@@ -183,8 +189,8 @@ namespace PlayableFramework.Editor
             Label typeLabel = new Label(displayText);
             typeLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             typeLabel.style.color = new Color(0.78f, 0.82f, 0.88f, 1f);
-            typeLabel.style.fontSize = 9f;
-            typeLabel.style.minHeight = 18f;
+            typeLabel.style.fontSize = SlotFontSize;
+            SetFixedHeight(typeLabel);
             typeLabel.style.whiteSpace = WhiteSpace.NoWrap;
             typeLabel.style.overflow = Overflow.Hidden;
             typeLabel.style.textOverflow = TextOverflow.Ellipsis;
@@ -231,12 +237,23 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            if (IsDefaultObjectProperty(valueProperty))
+            {
+                VisualElement defaultObjectField = BuildDefaultObjectField(valueProperty);
+                if (defaultObjectField != null)
+                {
+                    fieldRoot.Add(defaultObjectField);
+                }
+
+                return;
+            }
+
             PropertyField valueField = new PropertyField(valueProperty);
             valueField.label = string.Empty;
             valueField.style.flexGrow = 1f;
             valueField.style.flexShrink = 1f;
-            valueField.style.minHeight = 18f;
-            fieldRoot.Add(valueField);
+            SetFixedHeight(valueField);
+            fieldRoot.Add(WrapRowField(valueField));
             valueField.Bind(serializedObject);
             CompactField(valueField);
         }
@@ -301,6 +318,56 @@ namespace PlayableFramework.Editor
             return property != null && property.name == "service";
         }
 
+        private static bool IsDefaultObjectProperty(SerializedProperty property)
+        {
+            return property != null &&
+                   property.name == "obj" &&
+                   property.propertyType == SerializedPropertyType.ObjectReference;
+        }
+
+        private VisualElement BuildDefaultObjectField(SerializedProperty property)
+        {
+            if (property == null)
+            {
+                return null;
+            }
+
+            ObjectField objectField = new ObjectField();
+            objectField.objectType = typeof(UnityEngine.Object);
+            objectField.allowSceneObjects = true;
+            objectField.style.flexGrow = 1f;
+            objectField.style.flexShrink = 1f;
+            SetFixedHeight(objectField);
+            CompactBaseField(objectField);
+            objectField.value = property.objectReferenceValue;
+            objectField.RegisterValueChangedCallback(evt =>
+            {
+                GameObject currentObject = property.objectReferenceValue as GameObject;
+                if (evt.newValue == null)
+                {
+                    property.objectReferenceValue = null;
+                    serializedObject.ApplyModifiedProperties();
+                    objectField.SetValueWithoutNotify(null);
+                    RefreshNodePresentation();
+                    return;
+                }
+
+                GameObject resolvedObject = ResolveGameObjectSelection(evt.newValue);
+                if (resolvedObject == null)
+                {
+                    objectField.SetValueWithoutNotify(currentObject);
+                    return;
+                }
+
+                property.objectReferenceValue = resolvedObject;
+                serializedObject.ApplyModifiedProperties();
+                objectField.SetValueWithoutNotify(resolvedObject);
+                RefreshNodePresentation();
+            });
+
+            return WrapRowField(objectField);
+        }
+
         private VisualElement BuildOutputProviderField(SerializedProperty property, System.Type fieldType)
         {
             System.Type valueType = GetVarValueType(fieldType);
@@ -311,7 +378,8 @@ namespace PlayableFramework.Editor
             objectField.allowSceneObjects = true;
             objectField.style.flexGrow = 1f;
             objectField.style.flexShrink = 1f;
-            objectField.style.minHeight = 18f;
+            SetFixedHeight(objectField);
+            CompactBaseField(objectField);
             objectField.value = property.objectReferenceValue;
             objectField.RegisterValueChangedCallback(evt =>
             {
@@ -338,7 +406,7 @@ namespace PlayableFramework.Editor
                 RefreshNodePresentation();
             });
 
-            return objectField;
+            return WrapRowField(objectField);
         }
 
         private VisualElement BuildGlobalKeyField(SerializedProperty property, System.Type fieldType)
@@ -365,15 +433,16 @@ namespace PlayableFramework.Editor
             PopupField<string> popupField = new PopupField<string>(choices, currentValue);
             popupField.style.flexGrow = 1f;
             popupField.style.flexShrink = 1f;
-            popupField.style.minHeight = 18f;
-            popupField.style.fontSize = 10f;
+            SetFixedHeight(popupField);
+            popupField.style.fontSize = SlotFontSize;
+            CompactBaseField(popupField);
             popupField.RegisterValueChangedCallback(evt =>
             {
                 property.stringValue = evt.newValue == "<No Global>" ? string.Empty : evt.newValue;
                 serializedObject.ApplyModifiedProperties();
                 RefreshNodePresentation();
             });
-            return popupField;
+            return WrapRowField(popupField);
         }
 
         private static System.Type GetVarValueType(System.Type fieldType)
@@ -587,6 +656,26 @@ namespace PlayableFramework.Editor
             return null;
         }
 
+        private static GameObject ResolveGameObjectSelection(UnityEngine.Object pickedObject)
+        {
+            if (pickedObject == null)
+            {
+                return null;
+            }
+
+            if (pickedObject is GameObject pickedGameObject)
+            {
+                return pickedGameObject;
+            }
+
+            if (pickedObject is Component pickedComponent)
+            {
+                return pickedComponent.gameObject;
+            }
+
+            return null;
+        }
+
         private static bool IsOutputProviderCompatible(MonoBehaviour provider, System.Type expectedValueType, bool expectsList)
         {
             if (provider == null)
@@ -653,6 +742,39 @@ namespace PlayableFramework.Editor
             });
         }
 
+        private static void CompactBaseField(VisualElement field)
+        {
+            if (field == null)
+            {
+                return;
+            }
+
+            field.schedule.Execute(() =>
+            {
+                VisualElement labelElement = field.Q(className: "unity-base-field__label");
+                if (labelElement != null)
+                {
+                    labelElement.style.display = DisplayStyle.None;
+                    labelElement.style.width = 0f;
+                    labelElement.style.minWidth = 0f;
+                    labelElement.style.maxWidth = 0f;
+                    labelElement.style.marginRight = 0f;
+                    labelElement.style.paddingRight = 0f;
+                }
+
+                VisualElement inputElement = field.Q(className: "unity-base-field__input");
+                if (inputElement != null)
+                {
+                    inputElement.style.flexGrow = 1f;
+                    inputElement.style.flexShrink = 1f;
+                    inputElement.style.marginLeft = 0f;
+                    inputElement.style.fontSize = SlotFontSize;
+                }
+
+                SetDescendantFontSize(field, SlotFontSize);
+            });
+        }
+
         private static void ApplyCompactStylesRecursive(VisualElement element)
         {
             if (element == null)
@@ -662,20 +784,77 @@ namespace PlayableFramework.Editor
 
             if (element is Label label)
             {
-                label.style.fontSize = 9f;
+                label.style.fontSize = SlotFontSize;
+                SetFixedHeight(label);
                 label.style.whiteSpace = WhiteSpace.NoWrap;
                 label.style.overflow = Overflow.Hidden;
                 label.style.textOverflow = TextOverflow.Ellipsis;
             }
 
-            element.style.minHeight = 18f;
-            element.style.height = StyleKeyword.Auto;
+            if (element is not TextField)
+            {
+                element.style.minHeight = RowHeight;
+                element.style.maxHeight = RowHeight;
+            }
 
             int childCount = element.childCount;
             for (int i = 0; i < childCount; i++)
             {
                 ApplyCompactStylesRecursive(element[i]);
             }
+        }
+
+        private static VisualElement WrapRowField(VisualElement field)
+        {
+            HLayout container = new HLayout();
+            container.style.flexGrow = 1f;
+            container.style.flexShrink = 1f;
+            container.style.justifyContent = Justify.FlexStart;
+            container.style.alignItems = Align.Center;
+            SetFixedHeight(container);
+            if (field != null)
+            {
+                field.style.flexGrow = 1f;
+                field.style.flexShrink = 1f;
+                SetFixedHeight(field);
+                container.Add(field);
+            }
+
+            return container;
+        }
+
+        private static void SetDescendantFontSize(VisualElement element, float fontSize)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            if (element is TextElement textElement)
+            {
+                textElement.style.fontSize = fontSize;
+                textElement.style.whiteSpace = WhiteSpace.NoWrap;
+                textElement.style.overflow = Overflow.Hidden;
+                textElement.style.textOverflow = TextOverflow.Ellipsis;
+            }
+
+            int childCount = element.childCount;
+            for (int i = 0; i < childCount; i++)
+            {
+                SetDescendantFontSize(element[i], fontSize);
+            }
+        }
+
+        private static void SetFixedHeight(VisualElement element)
+        {
+            if (element == null)
+            {
+                return;
+            }
+
+            element.style.height = RowHeight;
+            element.style.minHeight = RowHeight;
+            element.style.maxHeight = RowHeight;
         }
 
         private static void AppendPropertyValue(StringBuilder builder, SerializedProperty property)

@@ -38,6 +38,11 @@ namespace PlayableFramework.Editor
                 return false;
             }
 
+            if (ServiceRule.Instance.TryApplyFlow(nextNodeId, enterNodeId))
+            {
+                return true;
+            }
+
             GameObject nextNodeObject;
             GameObject enterNodeObject;
             if (!GameObjectOperator.TryGetNodeObject(nextNodeId, out nextNodeObject) ||

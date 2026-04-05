@@ -4,6 +4,7 @@ using System.Reflection;
 using SP;
 using UnityEngine;
 using System;
+using UnityEditor;
 
 namespace PlayableFramework.Editor
 {
@@ -196,6 +197,233 @@ namespace PlayableFramework.Editor
             }
 
             return AssignOutputValueToInput(inputService, inputField, expectedType, expectsList, outputService);
+        }
+
+        public bool TryApplyFlow(string nextNodeId, string enterNodeId)
+        {
+            if (string.IsNullOrEmpty(nextNodeId) || string.IsNullOrEmpty(enterNodeId) || nextNodeId == enterNodeId)
+            {
+                return false;
+            }
+
+            Service nextService = GetService(nextNodeId);
+            Service enterService = GetService(enterNodeId);
+            if (nextService == null || enterService == null)
+            {
+                return false;
+            }
+
+            if (enterService is IGuideNode enterGuideNode)
+            {
+                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
+                Undo.RecordObject(enterService, "Link Guide Enter");
+                enterGuideNode.EnterId = nextNodeId;
+                enterGuideNode.EnterService = nextService;
+                EditorUtility.SetDirty(enterService);
+
+                if (nextService is INextServiceNode nextServiceNode)
+                {
+                    Undo.RecordObject(nextService, "Link Guide Next");
+                    nextServiceNode.NextService = enterService;
+                    EditorUtility.SetDirty(nextService);
+                }
+
+                if (nextService is IMultiNextServiceNode multiNextServiceNode)
+                {
+                    Undo.RecordObject(nextService, "Link Guide Next");
+                    AddUnique(multiNextServiceNode.NextServices, enterService);
+                    EditorUtility.SetDirty(nextService);
+                }
+
+                return true;
+            }
+
+            if (enterService is IMultiGuideNode multiEnterGuideNode)
+            {
+                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
+                Undo.RecordObject(enterService, "Link Multi Guide Enter");
+                AddUnique(multiEnterGuideNode.EnterIds, nextNodeId);
+                AddUnique(multiEnterGuideNode.EnterServices, nextService);
+                EditorUtility.SetDirty(enterService);
+
+                if (nextService is INextServiceNode nextServiceNode)
+                {
+                    Undo.RecordObject(nextService, "Link Guide Next");
+                    nextServiceNode.NextService = enterService;
+                    EditorUtility.SetDirty(nextService);
+                }
+
+                if (nextService is IMultiNextServiceNode multiNextServiceNode)
+                {
+                    Undo.RecordObject(nextService, "Link Multi Guide Next");
+                    AddUnique(multiNextServiceNode.NextServices, enterService);
+                    EditorUtility.SetDirty(nextService);
+                }
+
+                return true;
+            }
+
+            if (nextService is IGuideNode nextGuideNode)
+            {
+                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
+                Undo.RecordObject(nextService, "Link Guide Next");
+                nextGuideNode.NextId = enterNodeId;
+                nextGuideNode.NextService = enterService;
+                EditorUtility.SetDirty(nextService);
+                return true;
+            }
+
+            if (nextService is IMultiGuideNode multiNextGuideNode)
+            {
+                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
+                Undo.RecordObject(nextService, "Link Multi Guide Next");
+                AddUnique(multiNextGuideNode.NextIds, enterNodeId);
+                AddUnique(multiNextGuideNode.NextServices, enterService);
+                EditorUtility.SetDirty(nextService);
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryClearFlowLink(string parentNodeId, string childNodeId)
+        {
+            if (string.IsNullOrEmpty(parentNodeId) || string.IsNullOrEmpty(childNodeId))
+            {
+                return false;
+            }
+
+            Service childService = GetService(childNodeId);
+            if (childService is IGuideNode childGuideNode && childGuideNode.EnterId == parentNodeId)
+            {
+                Undo.RecordObject(childService, "Clear Guide Enter");
+                childGuideNode.EnterId = null;
+                childGuideNode.EnterService = null;
+                EditorUtility.SetDirty(childService);
+
+                Service parentService = GetService(parentNodeId);
+                if (parentService is INextServiceNode parentNextServiceNode && parentNextServiceNode.NextService == childService)
+                {
+                    Undo.RecordObject(parentService, "Clear Guide Next");
+                    parentNextServiceNode.NextService = null;
+                    EditorUtility.SetDirty(parentService);
+                }
+
+                if (parentService is IMultiNextServiceNode parentMultiNextServiceNode)
+                {
+                    Undo.RecordObject(parentService, "Clear Multi Guide Next");
+                    RemoveValue(parentMultiNextServiceNode.NextServices, childService);
+                    EditorUtility.SetDirty(parentService);
+                }
+
+                return true;
+            }
+
+            if (childService is IMultiGuideNode childMultiGuideNode && ContainsValue(childMultiGuideNode.EnterIds, parentNodeId))
+            {
+                Undo.RecordObject(childService, "Clear Guide Enter");
+                RemoveValue(childMultiGuideNode.EnterIds, parentNodeId);
+                RemoveValue(childMultiGuideNode.EnterServices, GetService(parentNodeId));
+                EditorUtility.SetDirty(childService);
+
+                Service parentService = GetService(parentNodeId);
+                if (parentService is INextServiceNode parentNextServiceNode && parentNextServiceNode.NextService == childService)
+                {
+                    Undo.RecordObject(parentService, "Clear Guide Next");
+                    parentNextServiceNode.NextService = null;
+                    EditorUtility.SetDirty(parentService);
+                }
+
+                if (parentService is IMultiNextServiceNode parentMultiNextServiceNode)
+                {
+                    Undo.RecordObject(parentService, "Clear Guide Next");
+                    RemoveValue(parentMultiNextServiceNode.NextServices, childService);
+                    EditorUtility.SetDirty(parentService);
+                }
+
+                return true;
+            }
+
+            Service parentGuideService = GetService(parentNodeId);
+            if (parentGuideService is IGuideNode parentGuideNode && parentGuideNode.NextId == childNodeId)
+            {
+                Undo.RecordObject(parentGuideService, "Clear Guide Next");
+                parentGuideNode.NextId = null;
+                parentGuideNode.NextService = null;
+                EditorUtility.SetDirty(parentGuideService);
+                return true;
+            }
+
+            if (parentGuideService is IMultiGuideNode parentMultiGuideNode && ContainsValue(parentMultiGuideNode.NextIds, childNodeId))
+            {
+                Undo.RecordObject(parentGuideService, "Clear Guide Next");
+                RemoveValue(parentMultiGuideNode.NextIds, childNodeId);
+                RemoveValue(parentMultiGuideNode.NextServices, GetService(childNodeId));
+                EditorUtility.SetDirty(parentGuideService);
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryGetGuideEnterIds(string nodeId, out List<string> enterIds)
+        {
+            enterIds = null;
+            Service service = GetService(nodeId);
+            if (service is IGuideNode singleGuideNode && !string.IsNullOrEmpty(singleGuideNode.EnterId))
+            {
+                enterIds = new List<string> { singleGuideNode.EnterId };
+                return true;
+            }
+
+            if (service is IMultiGuideNode multiGuideNode && multiGuideNode.EnterIds != null && multiGuideNode.EnterIds.Count > 0)
+            {
+                enterIds = multiGuideNode.EnterIds;
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryGetGuideNextIds(string nodeId, out List<string> nextIds)
+        {
+            nextIds = null;
+            Service service = GetService(nodeId);
+            if (service is IGuideNode singleGuideNode && !string.IsNullOrEmpty(singleGuideNode.NextId))
+            {
+                nextIds = new List<string> { singleGuideNode.NextId };
+                return true;
+            }
+
+            if (service is IMultiGuideNode multiGuideNode && multiGuideNode.NextIds != null && multiGuideNode.NextIds.Count > 0)
+            {
+                nextIds = multiGuideNode.NextIds;
+                return true;
+            }
+
+            return false;
+        }
+
+        public bool TryClearInputValue(string inputNodeId, string inputFieldName)
+        {
+            if (string.IsNullOrEmpty(inputNodeId) || string.IsNullOrEmpty(inputFieldName))
+            {
+                return false;
+            }
+
+            Service inputService = GetService(inputNodeId);
+            if (inputService == null)
+            {
+                return false;
+            }
+
+            FieldInfo inputField = GetField(inputService.GetType(), inputFieldName);
+            if (inputField == null)
+            {
+                return false;
+            }
+
+            return ClearInputValue(inputService, inputField);
         }
 
         public bool TryGetBoundOutputNodeId(LinkPoint inputPoint, out string outputNodeId)
@@ -496,6 +724,130 @@ namespace PlayableFramework.Editor
             return false;
         }
 
+        private static bool ClearInputValue(Service inputService, FieldInfo inputField)
+        {
+            if (inputService == null || inputField == null)
+            {
+                return false;
+            }
+
+            object inputValue = inputField.GetValue(inputService);
+            if (inputValue is MMVar singleVar)
+            {
+                UnityEditor.Undo.RecordObject(inputService, "Clear Input Value");
+                singleVar.obj = null;
+                singleVar.service = null;
+                singleVar.global = string.Empty;
+                singleVar.type = singleVar.SupportsDefaultInput ? InputType.Default : singleVar.GetFallbackInputType();
+                inputField.SetValue(inputService, inputValue);
+                UnityEditor.EditorUtility.SetDirty(inputService);
+                return true;
+            }
+
+            if (inputValue is MMListVar listVar)
+            {
+                UnityEditor.Undo.RecordObject(inputService, "Clear Input Value");
+                if (listVar.objs == null)
+                {
+                    listVar.objs = new List<GameObject>();
+                }
+                else
+                {
+                    listVar.objs.Clear();
+                }
+
+                listVar.service = null;
+                listVar.global = string.Empty;
+                listVar.type = listVar.SupportsDefaultInput ? InputType.Default : listVar.GetFallbackInputType();
+                inputField.SetValue(inputService, inputValue);
+                UnityEditor.EditorUtility.SetDirty(inputService);
+                return true;
+            }
+
+            if (typeof(UnityEngine.Object).IsAssignableFrom(inputField.FieldType))
+            {
+                UnityEditor.Undo.RecordObject(inputService, "Clear Input Value");
+                inputField.SetValue(inputService, null);
+                UnityEditor.EditorUtility.SetDirty(inputService);
+                return true;
+            }
+
+            if (typeof(System.Collections.IList).IsAssignableFrom(inputField.FieldType))
+            {
+                UnityEditor.Undo.RecordObject(inputService, "Clear Input Value");
+                object emptyList = null;
+                if (!inputField.FieldType.IsInterface && !inputField.FieldType.IsAbstract)
+                {
+                    try
+                    {
+                        emptyList = Activator.CreateInstance(inputField.FieldType);
+                    }
+                    catch
+                    {
+                        emptyList = null;
+                    }
+                }
+
+                inputField.SetValue(inputService, emptyList);
+                UnityEditor.EditorUtility.SetDirty(inputService);
+                return true;
+            }
+
+            return false;
+        }
+
+        private static void AddUnique<T>(List<T> list, T value)
+        {
+            if (list == null || EqualityComparer<T>.Default.Equals(value, default))
+            {
+                return;
+            }
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (EqualityComparer<T>.Default.Equals(list[i], value))
+                {
+                    return;
+                }
+            }
+
+            list.Add(value);
+        }
+
+        private static bool ContainsValue<T>(List<T> list, T value)
+        {
+            if (list == null)
+            {
+                return false;
+            }
+
+            for (int i = 0; i < list.Count; i++)
+            {
+                if (EqualityComparer<T>.Default.Equals(list[i], value))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static void RemoveValue<T>(List<T> list, T value)
+        {
+            if (list == null)
+            {
+                return;
+            }
+
+            for (int i = list.Count - 1; i >= 0; i--)
+            {
+                if (EqualityComparer<T>.Default.Equals(list[i], value))
+                {
+                    list.RemoveAt(i);
+                }
+            }
+        }
+
         private static bool AssignOutputValueToInput(Service inputService, FieldInfo inputField, Type expectedType, bool expectsList, MonoBehaviour outputService)
         {
             if (inputService == null || inputField == null || outputService == null || expectedType == null)
@@ -589,6 +941,29 @@ namespace PlayableFramework.Editor
 
             value = list;
             return true;
+        }
+
+        private static void EnsureGuideFlowDetached(string nextNodeId, string enterNodeId)
+        {
+            GameObject nextNodeObject;
+            GameObject enterNodeObject;
+            if (!GameObjectOperator.TryGetNodeObject(nextNodeId, out nextNodeObject) ||
+                !GameObjectOperator.TryGetNodeObject(enterNodeId, out enterNodeObject) ||
+                nextNodeObject == null ||
+                enterNodeObject == null)
+            {
+                return;
+            }
+
+            if (enterNodeObject.transform.parent == nextNodeObject.transform)
+            {
+                GameObjectOperator.MoveNodeToDefaultParent(enterNodeId);
+            }
+
+            if (nextNodeObject.transform.parent == enterNodeObject.transform)
+            {
+                GameObjectOperator.MoveNodeToDefaultParent(nextNodeId);
+            }
         }
     }
 }

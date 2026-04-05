@@ -64,6 +64,32 @@ namespace PlayableFramework.Editor
             return true;
         }
 
+        public static bool MoveNodeToDefaultParent(string nodeId)
+        {
+            Graph graph = FindGraph();
+            Root root = FindRoot();
+            GameObject nodeObject;
+            if (graph == null || !TryGetNodeObject(nodeId, out nodeObject) || nodeObject == null)
+            {
+                return false;
+            }
+
+            Transform targetParent = graph.transform;
+            Service service = nodeObject.GetComponent<Service>();
+            if (service is IGroupNode groupNode && root != null && !string.IsNullOrEmpty(groupNode.GroupParentName))
+            {
+                targetParent = EnsureChildTransform(root.transform, groupNode.GroupParentName);
+            }
+
+            if (nodeObject.transform.parent == targetParent)
+            {
+                return false;
+            }
+
+            Undo.SetTransformParent(nodeObject.transform, targetParent, "Move Node To Default Parent");
+            return true;
+        }
+
         public static T EnsureComponentChild<T>(Transform parentTransform, string childName) where T : Component
         {
             Transform childTransform = parentTransform.Find(childName);

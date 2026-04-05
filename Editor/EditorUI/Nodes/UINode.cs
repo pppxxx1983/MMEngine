@@ -23,7 +23,7 @@ namespace PlayableFramework.Editor
         private readonly NodeLayout contentLayout;
         private readonly NodeTitle titleView;
         private EnterNextPoint enterNextPoint;
-        private readonly List<ParamPoint> paramPoints = new List<ParamPoint>();
+        private readonly List<InputPoint> paramPoints = new List<InputPoint>();
         private readonly List<OutputPoint> outputPoints = new List<OutputPoint>();
         private readonly Dictionary<string, Vector2> dragStartPositions = new Dictionary<string, Vector2>();
 
@@ -42,7 +42,7 @@ namespace PlayableFramework.Editor
         {
             for (int i = 0; i < paramPoints.Count; i++)
             {
-                ParamPoint paramPoint = paramPoints[i];
+                InputPoint paramPoint = paramPoints[i];
                 if (paramPoint != null && paramPoint.FieldName == fieldName)
                 {
                     return paramPoint;
@@ -113,7 +113,7 @@ namespace PlayableFramework.Editor
         {
             for (int i = 0; i < paramPoints.Count; i++)
             {
-                ParamPoint paramPoint = paramPoints[i];
+                InputPoint paramPoint = paramPoints[i];
                 if (paramPoint != null)
                 {
                     paramPoint.RefreshBinding();
@@ -126,7 +126,7 @@ namespace PlayableFramework.Editor
             StringBuilder builder = new StringBuilder();
             for (int i = 0; i < paramPoints.Count; i++)
             {
-                ParamPoint paramPoint = paramPoints[i];
+                InputPoint paramPoint = paramPoints[i];
                 if (paramPoint == null)
                 {
                     continue;
@@ -163,7 +163,7 @@ namespace PlayableFramework.Editor
             List<FieldInfo> inputFields = ServiceRule.Instance.GetInputFields(Data.Id);
             for (int i = 0; i < inputFields.Count; i++)
             {
-                ParamPoint paramPoint = new ParamPoint();
+                InputPoint paramPoint = new InputPoint();
                 paramPoint.Setup(service, inputFields[i]);
                 paramPoints.Add(paramPoint);
                 contentLayout.Add(paramPoint);
@@ -219,7 +219,15 @@ namespace PlayableFramework.Editor
                 return;
             }
 
-            Vector2 delta = pointerPosition - lastPosition;
+            VisualElement canvas = parent;
+            if (canvas == null)
+            {
+                return;
+            }
+
+            Vector2 dragStartCanvasPosition = canvas.WorldToLocal(lastPosition);
+            Vector2 currentCanvasPosition = canvas.WorldToLocal(pointerPosition);
+            Vector2 delta = currentCanvasPosition - dragStartCanvasPosition;
             if (delta == Vector2.zero)
             {
                 return;
@@ -439,7 +447,7 @@ namespace PlayableFramework.Editor
 
             for (int i = 0; i < paramPoints.Count; i++)
             {
-                ParamPoint paramPoint = paramPoints[i];
+                InputPoint paramPoint = paramPoints[i];
                 if (paramPoint != null)
                 {
                     paramPoint.SetMirror(isMirror);
