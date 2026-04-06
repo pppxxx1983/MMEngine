@@ -110,7 +110,6 @@ namespace PlayableFramework.Editor
             NodeManager.Instance.Changed -= RebuildNodes;
             NodeManager.Instance.SelectionChanged -= OnNodeSelectionChanged;
             NodeManager.Instance.PosChanged -= SavePos;
-            SavePos();
         }
 
         private void OnInspectorUpdate()
@@ -146,10 +145,10 @@ namespace PlayableFramework.Editor
             topBar.Add(assetField);
 
             Button saveButton = new Button(CreatePosAsset);
-            saveButton.text = "Save";
+            saveButton.text = "Save As";
             topBar.Add(saveButton);
 
-            saveTip = new HelpBox("Please save asset.", HelpBoxMessageType.Info);
+            saveTip = new HelpBox("Please create or assign a Node Pos Asset to display nodes.", HelpBoxMessageType.Info);
             saveTip.style.marginLeft = 8f;
             topBar.Add(saveTip);
 
@@ -256,7 +255,7 @@ namespace PlayableFramework.Editor
             }
 
             SyncNodes();
-            SavePos();
+            DoSavePos();
         }
 
         private void RefreshNodes()
@@ -347,6 +346,7 @@ namespace PlayableFramework.Editor
                 }
 
                 List<UINode> selectedNodes = new List<UINode>();
+                bool hasValidNode = false;
                 for (int i = 0; i < selectedObjects.Length; i++)
                 {
                     GameObject selectedObject = selectedObjects[i];
@@ -361,11 +361,18 @@ namespace PlayableFramework.Editor
                         continue;
                     }
 
+                    hasValidNode = true;
                     UINode node = NodeManager.Instance.GetUINode(nodeId);
                     if (node != null)
                     {
                         selectedNodes.Add(node);
                     }
+                }
+
+                if (!hasValidNode)
+                {
+                    NodeManager.Instance.ClearSelection();
+                    return;
                 }
 
                 NodeManager.Instance.SetSelection(selectedNodes);
@@ -378,7 +385,6 @@ namespace PlayableFramework.Editor
 
         private void OnNodeSelectionChanged()
         {
-            RefreshNodes();
             SyncSceneSelectionFromNode();
         }
 
@@ -394,6 +400,12 @@ namespace PlayableFramework.Editor
             if (surface != null)
             {
                 surface.Focus();
+            }
+
+            if (posAsset == null)
+            {
+                EditorUtility.DisplayDialog("No Asset", "Please assign or create a Node Pos Asset first.", "OK");
+                return;
             }
 
             UpdateLastPointerPosition(evt.mousePosition);
@@ -419,7 +431,7 @@ namespace PlayableFramework.Editor
                 }
 
                 SyncNodes();
-                SavePos();
+                DoSavePos();
             });
             evt.StopPropagation();
         }
@@ -477,7 +489,8 @@ namespace PlayableFramework.Editor
             }
 
             RefreshAssetTip();
-            SavePos();
+            SyncNodes();
+            DoSavePos();
         }
 
         private void SaveNodePosWithAsset()
@@ -488,7 +501,110 @@ namespace PlayableFramework.Editor
                 return;
             }
 
-            SavePos();
+            DoSavePos();
+        }
+
+        private void MigrateFromLegacy()
+        {
+            string path = EditorUtility.OpenFilePanelWithFilters(
+                "Select Legacy NodeGraphLayout Asset",
+                "Assets",
+                new[] { "GraphLayoutAsset", "asset" });
+
+            if (string.IsNullOrEmpty(path))
+            {
+                return;
+            }
+
+            string relativePath = path;
+            if (path.StartsWith(Application.dataPath))
+            {
+                relativePath = "Assets" + path.Substring(Application.dataPath.Length);
+            }
+
+            GraphLayoutAsset legacyAsset = AssetDatabase.LoadAssetAtPath<GraphLayoutAsset>(relativePath);
+            if (legacyAsset == null || legacyAsset.nodes == null || legacyAsset.nodes.Count == 0)
+            {
+                Debug.LogWarning("[EditorUI] No legacy nodes found in selected asset.");
+                return;
+            }
+
+            if (posAsset == null)
+            {
+                CreatePosAsset();
+                if (posAsset == null)
+                {
+                    return;
+                }
+            }
+
+            Graph graph = FindSceneGraph();
+            if (graph == null)
+            {
+                Debug.LogWarning("[EditorUI] No Graph found in scene.");
+                return;
+            }
+
+            Dictionary<string, Vector2> legacyPosMap = new Dictionary<string, Vector2>();
+            for (int i = 0; i < legacyAsset.nodes.Count; i++)
+            {
+                GraphNode node = legacyAsset.nodes[i];
+                if (node != null && node.ServiceType != null)
+                {
+                    legacyPosMap[node.ServiceType.FullName] = node.Position;
+                }
+            }
+
+            List<Service> services = CollectGraphServices(graph);
+            int migratedCount = 0;
+
+            for (int i = 0; i < services.Count; i++)
+            {
+                Service service = services[i];
+                if (service == null)
+                {
+                    continue;
+                }
+
+                string typeName = service.GetType().FullName;
+                Vector2 position;
+                if (legacyPosMap.TryGetValue(typeName, out position))
+                {
+                    string nodeId = SceneNodeFactory.EnsureSceneNodeId(service.gameObject);
+                    if (!string.IsNullOrEmpty(nodeId))
+                    {
+                        UINode uiNode = NodeManager.Instance.GetUINode(nodeId);
+                        if (uiNode != null && uiNode.Data != null)
+                        {
+                            uiNode.Data.Position = position;
+                            uiNode.transform.position = new Vector3(position.x, position.y, 0f);
+                            migratedCount++;
+                        }
+                    }
+                }
+            }
+
+            if (assetField != null)
+            {
+                assetField.value = posAsset;
+            }
+
+            RefreshAssetTip();
+            DoSavePos();
+            Debug.Log($"[EditorUI] Migrated {migratedCount} node positions from legacy asset.");
+        }
+
+        private void PingGraphObject()
+        {
+            Graph graph = FindSceneGraph();
+            if (graph == null)
+            {
+                Debug.LogWarning("[EditorUI] No Graph found in scene.");
+                return;
+            }
+
+            Selection.activeGameObject = graph.gameObject;
+            EditorGUIUtility.PingObject(graph.gameObject);
         }
 
         private void LoadAsset()
@@ -510,6 +626,12 @@ namespace PlayableFramework.Editor
             if (!string.IsNullOrEmpty(path))
             {
                 posAsset = AssetDatabase.LoadAssetAtPath<NodePosAsset>(path);
+                if (posAsset != null && graph != null)
+                {
+                    Undo.RecordObject(graph, "Assign Graph NodePosAsset");
+                    graph.nodePosAsset = posAsset;
+                    EditorUtility.SetDirty(graph);
+                }
             }
         }
 
@@ -528,6 +650,13 @@ namespace PlayableFramework.Editor
             List<UINode> nodes = new List<UINode>();
             Graph graph = FindSceneGraph();
             if (graph == null)
+            {
+                lastNodeStructureSignature = 0;
+                NodeManager.Instance.SetUINodes(nodes);
+                return;
+            }
+
+            if (posAsset == null)
             {
                 lastNodeStructureSignature = 0;
                 NodeManager.Instance.SetUINodes(nodes);
@@ -561,7 +690,8 @@ namespace PlayableFramework.Editor
                 }
 
                 Vector2 position;
-                if (!posMap.TryGetValue(nodeId, out position))
+                bool hasPos = posMap.TryGetValue(nodeId, out position);
+                if (!hasPos)
                 {
                     position = new Vector2(80f, 80f + order * 90f);
                 }
@@ -732,6 +862,17 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            EditorApplication.delayCall += () => DoSavePos();
+        }
+
+        private void DoSavePos()
+        {
+            if (posAsset == null)
+            {
+                RefreshAssetTip();
+                return;
+            }
+
             Graph graph = FindSceneGraph();
             if (graph == null)
             {
@@ -772,6 +913,7 @@ namespace PlayableFramework.Editor
             EditorUtility.SetDirty(posAsset);
             AssetDatabase.SaveAssets();
             RefreshAssetTip();
+            Debug.Log($"[EditorUI] Saved {posAsset.nodes.Count} positions.");
         }
 
         private void DeleteSelection()
@@ -791,7 +933,7 @@ namespace PlayableFramework.Editor
                 }
 
                 SyncNodes();
-                SavePos();
+                DoSavePos();
                 return;
             }
 
@@ -821,7 +963,7 @@ namespace PlayableFramework.Editor
                 if (anyCleared)
                 {
                     SyncNodes();
-                    SavePos();
+                    DoSavePos();
                 }
 
                 return;
@@ -859,7 +1001,7 @@ namespace PlayableFramework.Editor
             if (anyChanged)
             {
                 SyncNodes();
-                SavePos();
+                DoSavePos();
             }
         }
 
@@ -876,11 +1018,6 @@ namespace PlayableFramework.Editor
                 List<UINode> selectedNodes = NodeManager.Instance.GetSelectedUINodes();
                 if (selectedNodes.Count == 0)
                 {
-                    if (Selection.activeGameObject != null)
-                    {
-                        Selection.activeGameObject = null;
-                    }
-
                     return;
                 }
 
@@ -898,6 +1035,11 @@ namespace PlayableFramework.Editor
                     {
                         selectedObjects.Add(nodeObject);
                     }
+                }
+
+                if (selectedObjects.Count == 0)
+                {
+                    return;
                 }
 
                 Selection.objects = selectedObjects.ToArray();
@@ -1289,7 +1431,7 @@ namespace PlayableFramework.Editor
             }
 
             NodeManager.Instance.SetSelection(pastedNodes);
-            SavePos();
+            DoSavePos();
         }
 
         private Vector2 GetPasteAnchorPosition()
