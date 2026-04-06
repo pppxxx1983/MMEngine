@@ -8,16 +8,9 @@ namespace SP
     /// </summary>
     public class ThirdPersonCamera : Service, IFlowPort
     {
-        public bool HasEnterPort => false;
-        public bool HasNextPort => false;
-        [HideInInspector][SerializeField] private bool isMirror;
-        public bool IsMirror
-        {
-            get => isMirror;
-            set => isMirror = value;
-        }
-        
-        
+        [HideInInspector] public bool HasEnterPort => false;
+        [HideInInspector] public bool HasNextPort => false;
+
         [FormerlySerializedAs("targetCamera")]
         [Input]
         public CameraVar cameraInput = new CameraVar();
