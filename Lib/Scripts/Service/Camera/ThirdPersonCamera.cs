@@ -10,7 +10,7 @@ namespace SP
     {
         public bool HasEnterPort => false;
         public bool HasNextPort => false;
-        [SerializeField] private bool isMirror;
+        [HideInInspector][SerializeField] private bool isMirror;
         public bool IsMirror
         {
             get => isMirror;
