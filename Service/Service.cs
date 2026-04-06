@@ -7,6 +7,7 @@ namespace SP
 {
     public class Service : MonoBehaviour
     {
+        [HideInInspector][SerializeField] private string IRefNextID;
         public virtual void Init()
         {
         }

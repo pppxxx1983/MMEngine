@@ -13,6 +13,12 @@ namespace PlayableFramework.Editor
                 return false;
             }
 
+            // 处理 Ref 连接（RefNext→Enter 或 RefEnter→Next）
+            if (IsRefLink(startPoint, endPoint))
+            {
+                return TryConnectRefLink(startPoint, endPoint);
+            }
+
             if (IsValueLink(startPoint, endPoint))
             {
                 LinkPoint outputPoint = startPoint.Type == LinkPointType.Output ? startPoint : endPoint;
@@ -60,6 +66,78 @@ namespace PlayableFramework.Editor
             return true;
         }
 
+        private static bool IsRefLink(LinkPoint startPoint, LinkPoint endPoint)
+        {
+            // RefNext → Enter 或 Enter → RefNext
+            bool isRefNextToEnter = (startPoint.Type == LinkPointType.RefNext && endPoint.Type == LinkPointType.Enter) ||
+                                    (startPoint.Type == LinkPointType.Enter && endPoint.Type == LinkPointType.RefNext);
+            // RefEnter → Next 或 Next → RefEnter
+            bool isRefEnterToNext = (startPoint.Type == LinkPointType.RefEnter && endPoint.Type == LinkPointType.Next) ||
+                                    (startPoint.Type == LinkPointType.Next && endPoint.Type == LinkPointType.RefEnter);
+            return isRefNextToEnter || isRefEnterToNext;
+        }
+
+        private static bool TryConnectRefLink(LinkPoint startPoint, LinkPoint endPoint)
+        {
+            // RefNext → Enter
+            if ((startPoint.Type == LinkPointType.RefNext && endPoint.Type == LinkPointType.Enter) ||
+                (startPoint.Type == LinkPointType.Enter && endPoint.Type == LinkPointType.RefNext))
+            {
+                LinkPoint refNextPoint = startPoint.Type == LinkPointType.RefNext ? startPoint : endPoint;
+                LinkPoint enterPoint = refNextPoint == startPoint ? endPoint : startPoint;
+
+                UINode refNextNode = GetOwnerNode(refNextPoint);
+                UINode enterNode = GetOwnerNode(enterPoint);
+
+                if (refNextNode == null || enterNode == null || 
+                    refNextNode.Data == null || enterNode.Data == null)
+                {
+                    return false;
+                }
+
+                string refNextNodeId = refNextNode.Data.Id;
+                string enterNodeId = enterNode.Data.Id;
+
+                if (string.IsNullOrEmpty(refNextNodeId) || string.IsNullOrEmpty(enterNodeId))
+                {
+                    return false;
+                }
+
+                // 保存 EnterId 到 RefNext 所在 Service
+                return ServiceRule.Instance.TryApplyRefNextToEnter(refNextNodeId, enterNodeId);
+            }
+
+            // RefEnter → Next
+            if ((startPoint.Type == LinkPointType.RefEnter && endPoint.Type == LinkPointType.Next) ||
+                (startPoint.Type == LinkPointType.Next && endPoint.Type == LinkPointType.RefEnter))
+            {
+                LinkPoint refEnterPoint = startPoint.Type == LinkPointType.RefEnter ? startPoint : endPoint;
+                LinkPoint nextPoint = refEnterPoint == startPoint ? endPoint : startPoint;
+
+                UINode refEnterNode = GetOwnerNode(refEnterPoint);
+                UINode nextNode = GetOwnerNode(nextPoint);
+
+                if (refEnterNode == null || nextNode == null || 
+                    refEnterNode.Data == null || nextNode.Data == null)
+                {
+                    return false;
+                }
+
+                string refEnterNodeId = refEnterNode.Data.Id;
+                string nextNodeId = nextNode.Data.Id;
+
+                if (string.IsNullOrEmpty(refEnterNodeId) || string.IsNullOrEmpty(nextNodeId))
+                {
+                    return false;
+                }
+
+                // 保存 NextId 到 RefEnter 所在 Service 的 IRefPort.NextId
+                return ServiceRule.Instance.TryApplyRefEnterToNext(refEnterNodeId, nextNodeId);
+            }
+
+            return false;
+        }
+
         public static bool CanConnect(LinkPoint startPoint, LinkPoint endPoint)
         {
             if (startPoint == null || endPoint == null || startPoint == endPoint)
@@ -71,7 +149,9 @@ namespace PlayableFramework.Editor
             bool isEnterToNext = startPoint.Type == LinkPointType.Enter && endPoint.Type == LinkPointType.Next;
             bool isOutputToInput = startPoint.Type == LinkPointType.Output && endPoint.Type == LinkPointType.Input;
             bool isInputToOutput = startPoint.Type == LinkPointType.Input && endPoint.Type == LinkPointType.Output;
-            if (!isNextToEnter && !isEnterToNext && !isOutputToInput && !isInputToOutput)
+            bool isRefLink = IsRefLink(startPoint, endPoint);
+            
+            if (!isNextToEnter && !isEnterToNext && !isOutputToInput && !isInputToOutput && !isRefLink)
             {
                 return false;
             }

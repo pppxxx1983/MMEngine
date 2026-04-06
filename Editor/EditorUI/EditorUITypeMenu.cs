@@ -53,10 +53,16 @@ namespace PlayableFramework.Editor
                 EditorGUILayout.Space(4f);
 
                 scrollPosition = EditorGUILayout.BeginScrollView(scrollPosition);
-                DrawParentFolderRow();
-                DrawFolderRows();
-                DrawEntryRows();
-                EditorGUILayout.EndScrollView();
+                try
+                {
+                    DrawParentFolderRow();
+                    DrawFolderRows();
+                    DrawEntryRows();
+                }
+                finally
+                {
+                    EditorGUILayout.EndScrollView();
+                }
             }
 
             private void DrawBreadcrumb()

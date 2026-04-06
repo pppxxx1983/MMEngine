@@ -13,6 +13,8 @@ namespace SP
         [Input] public TriggerVar trigger1;
         [Input] public TriggerVar trigger2;
 
+        [HideInInspector][SerializeField] private string IRefNextID;
+
         [Header("操作对象")]
         [Input]
         public StockVar fromStock;

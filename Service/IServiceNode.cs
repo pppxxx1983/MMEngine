@@ -29,3 +29,19 @@ public interface IMirrorNode
 {
     bool IsMirror { get; set; }
 }
+
+/// <summary>
+/// 引用端口接口。
+/// 当 RefEnter 连接到 Next 时，目标 Service 保存此接口实现者的 id。
+/// 目标调用 Next() 时会触发 OnRefActivated。
+/// </summary>
+public interface IRefPort
+{
+    string EnterId { get; set; }
+    string NextId { get; set; }
+    
+    /// <summary>
+    /// 当目标 Service 调用 Next() 时触发此方法。
+    /// </summary>
+    void OnRefActivated();
+}

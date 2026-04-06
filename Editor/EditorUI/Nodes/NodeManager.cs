@@ -124,6 +124,8 @@ namespace PlayableFramework.Editor
         {
             if (!additive)
             {
+                // 单选模式：清除所有之前的选择（节点、曲线、变量线）
+                ClearSelection();
                 UIManager.Instance.Curve?.ClearSelection();
                 UIManager.Instance.VarLine?.ClearSelection();
             }
@@ -231,7 +233,17 @@ namespace PlayableFramework.Editor
                     continue;
                 }
 
-                node.Data.IsSelected = !string.IsNullOrEmpty(node.Data.Id) && selectedIds.Contains(node.Data.Id);
+                bool newSelected = !string.IsNullOrEmpty(node.Data.Id) && selectedIds.Contains(node.Data.Id);
+                if (node.Data.IsSelected != newSelected)
+                {
+                    node.Data.IsSelected = newSelected;
+                    node.Refresh();  // 刷新样式
+                }
+                else
+                {
+                    node.Data.IsSelected = newSelected;
+                }
+                
                 if (node.Data.IsSelected && SelectedUINode == null)
                 {
                     SelectedUINode = node;

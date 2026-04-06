@@ -23,6 +23,7 @@ namespace PlayableFramework.Editor
         private readonly NodeLayout contentLayout;
         private readonly NodeTitle titleView;
         private EnterNextPoint enterNextPoint;
+        private RefEnterNextPoint refEnterNextPoint;
         private readonly List<InputPoint> paramPoints = new List<InputPoint>();
         private readonly List<OutputPoint> outputPoints = new List<OutputPoint>();
         private readonly Dictionary<string, Vector2> dragStartPositions = new Dictionary<string, Vector2>();
@@ -37,6 +38,8 @@ namespace PlayableFramework.Editor
         public NodeData Data => data;
         public LinkPoint EnterPoint => enterNextPoint != null ? enterNextPoint.EnterPoint : null;
         public LinkPoint NextPoint => enterNextPoint != null ? enterNextPoint.NextPoint : null;
+        public LinkPoint RefEnterPoint => refEnterNextPoint != null ? refEnterNextPoint.RefEnterPoint : null;
+        public LinkPoint RefNextPoint => refEnterNextPoint != null ? refEnterNextPoint.RefNextPoint : null;
 
         public LinkPoint GetInputPoint(string fieldName)
         {
@@ -158,6 +161,13 @@ namespace PlayableFramework.Editor
                 enterNextPoint = new EnterNextPoint();
                 enterNextPoint.SetPortVisible(hasEnterPort, hasNextPort);
                 contentLayout.Add(enterNextPoint);
+            }
+
+            // 只有实现 IRefPort 接口的节点才显示 RefEnter/RefNext 端口
+            if (service is IRefPort)
+            {
+                refEnterNextPoint = new RefEnterNextPoint();
+                contentLayout.Add(refEnterNextPoint);
             }
 
             List<FieldInfo> inputFields = ServiceRule.Instance.GetInputFields(Data.Id);
@@ -443,6 +453,11 @@ namespace PlayableFramework.Editor
             if (enterNextPoint != null)
             {
                 enterNextPoint.SetMirror(isMirror);
+            }
+
+            if (refEnterNextPoint != null)
+            {
+                refEnterNextPoint.SetMirror(isMirror);
             }
 
             for (int i = 0; i < paramPoints.Count; i++)

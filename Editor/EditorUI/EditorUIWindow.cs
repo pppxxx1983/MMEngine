@@ -985,6 +985,13 @@ namespace PlayableFramework.Editor
                     continue;
                 }
 
+                // 尝试清除 Ref 链接
+                if (ServiceRule.Instance.TryClearRefLink(link.ParentId, link.ChildId))
+                {
+                    anyChanged = true;
+                    continue;
+                }
+
                 if (ServiceRule.Instance.TryClearFlowLink(link.ParentId, link.ChildId))
                 {
                     anyChanged = true;
@@ -1088,6 +1095,8 @@ namespace PlayableFramework.Editor
             Vector2 canvasLocalPosition = canvas.WorldToLocal(pointerPosition);
             if (curve != null && curve.TrySelectAt(canvasLocalPosition))
             {
+                // 单选曲线：清除节点选择和变量线选择
+                NodeManager.Instance.ClearSelection();
                 if (varLine != null)
                 {
                     varLine.ClearSelection();
@@ -1098,6 +1107,8 @@ namespace PlayableFramework.Editor
 
             if (varLine != null && varLine.TrySelectAt(canvasLocalPosition))
             {
+                // 单选变量线：清除节点选择和曲线选择
+                NodeManager.Instance.ClearSelection();
                 if (curve != null)
                 {
                     curve.ClearSelection();
@@ -1107,6 +1118,8 @@ namespace PlayableFramework.Editor
                 return;
             }
 
+            // 点击空白处：清除所有选择
+            NodeManager.Instance.ClearSelection();
             if (curve != null)
             {
                 curve.ClearSelection();

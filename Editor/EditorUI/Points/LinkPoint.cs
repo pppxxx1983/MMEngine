@@ -8,7 +8,9 @@ namespace PlayableFramework.Editor
         Enter,
         Next,
         Input,
-        Output
+        Output,
+        RefEnter,
+        RefNext
     }
 
     public class LinkPoint : HLayout

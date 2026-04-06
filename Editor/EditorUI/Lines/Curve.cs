@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UIElements;
+using SP;
 
 namespace PlayableFramework.Editor
 {
@@ -149,7 +150,7 @@ namespace PlayableFramework.Editor
             for (int i = 0; i < hits.Count; i++)
             {
                 CurveHit hit = hits[i];
-                bool isSelected = IsSelected(hit.ParentId, hit.ChildId);
+                bool isSelected = IsSelected(hit.ParentId, hit.ChildId, hit.IsRefCurve);
                 painter.strokeColor = isSelected ? SelectedColor : DefaultColor;
                 painter.lineWidth = isSelected ? SelectedWidth : Width;
 
@@ -243,9 +244,130 @@ namespace PlayableFramework.Editor
                         }
                     }
                 }
+
+                // 获取 Service 以读取 IRefPort
+                Service service = ServiceRule.Instance.GetService(node.Data.Id);
+                
+                // 绘制 RefNext → Enter 和 RefEnter → Next 曲线（基于 IRefPort）
+                if (service is IRefPort refPort)
+                {
+                    // RefNext → Enter: IRefPort.EnterId 保存 Enter 所在对象的 id
+                    if (!string.IsNullOrEmpty(refPort.EnterId))
+                    {
+                        UINode targetNode = NodeManager.Instance.GetUINode(refPort.EnterId);
+                        if (targetNode != null && targetNode.Data != null)
+                        {
+                            if (TryBuildRefNextHit(node, targetNode, canvas, out CurveHit refNextHit))
+                            {
+                                hits.Add(refNextHit);
+                            }
+                        }
+                    }
+                    
+                    // RefEnter → Next: IRefPort.NextId 保存 Next 所在对象的 id
+                    if (!string.IsNullOrEmpty(refPort.NextId))
+                    {
+                        UINode targetNode = NodeManager.Instance.GetUINode(refPort.NextId);
+                        if (targetNode != null && targetNode.Data != null)
+                        {
+                            if (TryBuildRefEnterHit(node, targetNode, canvas, out CurveHit refEnterHit))
+                            {
+                                hits.Add(refEnterHit);
+                            }
+                        }
+                    }
+                }
             }
 
             return hits;
+        }
+
+        private static bool TryBuildRefEnterHit(UINode sourceNode, UINode targetNode, VisualElement canvas, out CurveHit hit)
+        {
+            hit = default(CurveHit);
+            if (sourceNode == null || targetNode == null || sourceNode.Data == null || targetNode.Data == null || canvas == null)
+            {
+                return false;
+            }
+
+            LinkPoint sourcePoint = sourceNode.RefEnterPoint;
+            LinkPoint targetPoint = targetNode.NextPoint;
+            if (sourcePoint == null || targetPoint == null)
+            {
+                return false;
+            }
+
+            Vector2 start = canvas.WorldToLocal(sourcePoint.GetPointWorldPosition());
+            Vector2 end = canvas.WorldToLocal(targetPoint.GetPointWorldPosition());
+            
+            // 根据点的实际位置动态计算切线方向（支持镜像）
+            float startDirection = GetHorizontalDirection(sourcePoint, sourceNode);
+            float endDirection = GetHorizontalDirection(targetPoint, targetNode);
+
+            float distance = Vector2.Distance(start, end);
+            float tangentLength = Mathf.Min(TangentOffset, distance * 0.5f);
+            Vector2 startTangent = start + new Vector2(startDirection * tangentLength, 0f);
+            Vector2 endTangent = end + new Vector2(endDirection * tangentLength, 0f);
+
+            bool isStraight = distance < StraightDistance;
+
+            hit = new CurveHit
+            {
+                ParentId = sourceNode.Data.Id,
+                ChildId = targetNode.Data.Id,
+                Start = start,
+                End = end,
+                IsStraight = isStraight,
+                StartTangent = startTangent,
+                EndTangent = endTangent,
+                IsRefCurve = true
+            };
+
+            return true;
+        }
+
+        private static bool TryBuildRefNextHit(UINode sourceNode, UINode targetNode, VisualElement canvas, out CurveHit hit)
+        {
+            hit = default(CurveHit);
+            if (sourceNode == null || targetNode == null || sourceNode.Data == null || targetNode.Data == null || canvas == null)
+            {
+                return false;
+            }
+
+            LinkPoint sourcePoint = sourceNode.RefNextPoint;
+            LinkPoint targetPoint = targetNode.EnterPoint;
+            if (sourcePoint == null || targetPoint == null)
+            {
+                return false;
+            }
+
+            Vector2 start = canvas.WorldToLocal(sourcePoint.GetPointWorldPosition());
+            Vector2 end = canvas.WorldToLocal(targetPoint.GetPointWorldPosition());
+            
+            // 根据点的实际位置动态计算切线方向（支持镜像）
+            float startDirection = GetHorizontalDirection(sourcePoint, sourceNode);
+            float endDirection = GetHorizontalDirection(targetPoint, targetNode);
+
+            float distance = Vector2.Distance(start, end);
+            float tangentLength = Mathf.Min(TangentOffset, distance * 0.5f);
+            Vector2 startTangent = start + new Vector2(startDirection * tangentLength, 0f);
+            Vector2 endTangent = end + new Vector2(endDirection * tangentLength, 0f);
+
+            bool isStraight = distance < StraightDistance;
+
+            hit = new CurveHit
+            {
+                ParentId = sourceNode.Data.Id,
+                ChildId = targetNode.Data.Id,
+                Start = start,
+                End = end,
+                IsStraight = isStraight,
+                StartTangent = startTangent,
+                EndTangent = endTangent,
+                IsRefCurve = true
+            };
+
+            return true;
         }
 
         private static bool TryBuildHit(UINode parentNode, UINode childNode, VisualElement canvas, out CurveHit hit)
@@ -276,7 +398,8 @@ namespace PlayableFramework.Editor
                 End = end,
                 IsStraight = Vector2.Distance(start, end) <= StraightDistance,
                 StartTangent = start + new Vector2(tangentOffset * startDirection, 0f),
-                EndTangent = end + new Vector2(tangentOffset * endDirection, 0f)
+                EndTangent = end + new Vector2(tangentOffset * endDirection, 0f),
+                IsRefCurve = false
             };
             return true;
         }
@@ -299,13 +422,21 @@ namespace PlayableFramework.Editor
             return pointX >= nodeCenterX ? 1f : -1f;
         }
 
-        private bool IsSelected(string parentId, string childId)
+        private bool IsSelected(string parentId, string childId, bool isRefCurve)
         {
+            // 曲线本身被选中
             if (selectedCurves.Contains(GetCurveKey(parentId, childId)))
             {
                 return true;
             }
 
+            // Ref 曲线只根据本身是否被选中，不跟随节点状态
+            if (isRefCurve)
+            {
+                return false;
+            }
+
+            // 普通父子曲线跟随节点选中状态
             UINode parentNode = NodeManager.Instance.GetUINode(parentId);
             if (parentNode != null && parentNode.Data != null && parentNode.Data.IsSelected)
             {
@@ -444,6 +575,7 @@ namespace PlayableFramework.Editor
             public bool IsStraight;
             public Vector2 StartTangent;
             public Vector2 EndTangent;
+            public bool IsRefCurve;
         }
     }
 }

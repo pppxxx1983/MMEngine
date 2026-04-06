@@ -221,6 +221,124 @@ namespace PlayableFramework.Editor
             return false;
         }
 
+        /// <summary>
+        /// RefEnter 连接到 Next，保存 RefEnter 节点 id 到目标 Service 的 IRefPortID 字段。
+        /// </summary>
+        public bool TryApplyRefNextToEnter(string refNextNodeId, string enterNodeId)
+        {
+            if (string.IsNullOrEmpty(refNextNodeId) || string.IsNullOrEmpty(enterNodeId))
+            {
+                return false;
+            }
+
+            Service refService = GetService(refNextNodeId);
+            if (refService == null || refService is not IRefPort refPort)
+            {
+                return false;
+            }
+
+            Undo.RecordObject(refService, "Link RefNext to Enter");
+            refPort.EnterId = enterNodeId;
+            EditorUtility.SetDirty(refService);
+            return true;
+        }
+
+        public bool TryApplyRefEnterToNext(string refEnterNodeId, string nextNodeId)
+        {
+            if (string.IsNullOrEmpty(refEnterNodeId) || string.IsNullOrEmpty(nextNodeId))
+            {
+                return false;
+            }
+
+            // 1. 保存 NextId 到 RefEnter 所在 Service 的 IRefPort.NextId
+            Service refService = GetService(refEnterNodeId);
+            if (refService == null || refService is not IRefPort refPort)
+            {
+                return false;
+            }
+
+            // 2. 保存 IRefPort id 到目标 Service 的 IRefNextID 字段（运行时逻辑用）
+            Service targetService = GetService(nextNodeId);
+            if (targetService == null)
+            {
+                return false;
+            }
+
+            System.Reflection.FieldInfo field = targetService.GetType().GetField("IRefNextID", 
+                System.Reflection.BindingFlags.Instance | 
+                System.Reflection.BindingFlags.Public | 
+                System.Reflection.BindingFlags.NonPublic);
+
+            if (field == null)
+            {
+                Debug.LogWarning($"[{nameof(ServiceRule)}] Target service does not have IRefNextID field: {targetService.GetType().Name}");
+                return false;
+            }
+
+            Undo.RecordObject(refService, "Link RefEnter to Next");
+            refPort.NextId = nextNodeId;
+            EditorUtility.SetDirty(refService);
+
+            Undo.RecordObject(targetService, "Link RefEnter to Next");
+            field.SetValue(targetService, refEnterNodeId);
+            EditorUtility.SetDirty(targetService);
+            return true;
+        }
+
+        /// <summary>
+        /// 清除 Ref 链接。
+        /// </summary>
+        public bool TryClearRefLink(string parentId, string childId)
+        {
+            if (string.IsNullOrEmpty(parentId) || string.IsNullOrEmpty(childId))
+            {
+                return false;
+            }
+
+            // 检查是否是 RefNext→Enter 链接（parent 是 RefNext，child 是 Enter）
+            Service parentService = GetService(parentId);
+            if (parentService is IRefPort parentRefPort && parentRefPort.EnterId == childId)
+            {
+                Undo.RecordObject(parentService, "Clear RefNext Link");
+                parentRefPort.EnterId = null;
+                EditorUtility.SetDirty(parentService);
+                return true;
+            }
+
+            // 检查是否是 RefEnter→Next 链接（parent 是 RefEnter，child 是 Next）
+            // 基于 IRefPort.NextId 判断
+            if (parentService is IRefPort parentRefPort2 && parentRefPort2.NextId == childId)
+            {
+                Undo.RecordObject(parentService, "Clear RefEnter Link");
+                parentRefPort2.NextId = null;
+                EditorUtility.SetDirty(parentService);
+                
+                // 同时清除目标 Service 的 IRefNextID
+                Service childService = GetService(childId);
+                if (childService != null)
+                {
+                    System.Reflection.FieldInfo field = childService.GetType().GetField("IRefNextID",
+                        System.Reflection.BindingFlags.Instance |
+                        System.Reflection.BindingFlags.Public |
+                        System.Reflection.BindingFlags.NonPublic);
+
+                    if (field != null)
+                    {
+                        string currentValue = field.GetValue(childService) as string;
+                        if (currentValue == parentId)
+                        {
+                            Undo.RecordObject(childService, "Clear RefEnter Link");
+                            field.SetValue(childService, null);
+                            EditorUtility.SetDirty(childService);
+                        }
+                    }
+                }
+                return true;
+            }
+
+            return false;
+        }
+
         public bool TryClearInputValue(string inputNodeId, string inputFieldName)
         {
             if (string.IsNullOrEmpty(inputNodeId) || string.IsNullOrEmpty(inputFieldName))
