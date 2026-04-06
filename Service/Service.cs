@@ -7,11 +7,6 @@ namespace SP
 {
     public class Service : MonoBehaviour
     {
-        // [Enter] public List<Service> _enters=new List<Service>();
-        // [Next]  public List<Service> _next=new List<Service>();
-        // [HideInInspector]public List<Service> _inputs = new List<Service>();
-        // [HideInInspector]public List<Service> _outputs = new List<Service>();
-
         public virtual void Init()
         {
         }

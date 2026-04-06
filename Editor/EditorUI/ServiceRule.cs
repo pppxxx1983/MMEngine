@@ -201,206 +201,23 @@ namespace PlayableFramework.Editor
 
         public bool TryApplyFlow(string nextNodeId, string enterNodeId)
         {
-            if (string.IsNullOrEmpty(nextNodeId) || string.IsNullOrEmpty(enterNodeId) || nextNodeId == enterNodeId)
-            {
-                return false;
-            }
-
-            Service nextService = GetService(nextNodeId);
-            Service enterService = GetService(enterNodeId);
-            if (nextService == null || enterService == null)
-            {
-                return false;
-            }
-
-            if (enterService is IGuideNode enterGuideNode)
-            {
-                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
-                Undo.RecordObject(enterService, "Link Guide Enter");
-                enterGuideNode.EnterId = nextNodeId;
-                enterGuideNode.EnterService = nextService;
-                EditorUtility.SetDirty(enterService);
-
-                if (nextService is INextServiceNode nextServiceNode)
-                {
-                    Undo.RecordObject(nextService, "Link Guide Next");
-                    nextServiceNode.NextService = enterService;
-                    EditorUtility.SetDirty(nextService);
-                }
-
-                if (nextService is IMultiNextServiceNode multiNextServiceNode)
-                {
-                    Undo.RecordObject(nextService, "Link Guide Next");
-                    AddUnique(multiNextServiceNode.NextServices, enterService);
-                    EditorUtility.SetDirty(nextService);
-                }
-
-                return true;
-            }
-
-            if (enterService is IMultiGuideNode multiEnterGuideNode)
-            {
-                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
-                Undo.RecordObject(enterService, "Link Multi Guide Enter");
-                AddUnique(multiEnterGuideNode.EnterIds, nextNodeId);
-                AddUnique(multiEnterGuideNode.EnterServices, nextService);
-                EditorUtility.SetDirty(enterService);
-
-                if (nextService is INextServiceNode nextServiceNode)
-                {
-                    Undo.RecordObject(nextService, "Link Guide Next");
-                    nextServiceNode.NextService = enterService;
-                    EditorUtility.SetDirty(nextService);
-                }
-
-                if (nextService is IMultiNextServiceNode multiNextServiceNode)
-                {
-                    Undo.RecordObject(nextService, "Link Multi Guide Next");
-                    AddUnique(multiNextServiceNode.NextServices, enterService);
-                    EditorUtility.SetDirty(nextService);
-                }
-
-                return true;
-            }
-
-            if (nextService is IGuideNode nextGuideNode)
-            {
-                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
-                Undo.RecordObject(nextService, "Link Guide Next");
-                nextGuideNode.NextId = enterNodeId;
-                nextGuideNode.NextService = enterService;
-                EditorUtility.SetDirty(nextService);
-                return true;
-            }
-
-            if (nextService is IMultiGuideNode multiNextGuideNode)
-            {
-                EnsureGuideFlowDetached(nextNodeId, enterNodeId);
-                Undo.RecordObject(nextService, "Link Multi Guide Next");
-                AddUnique(multiNextGuideNode.NextIds, enterNodeId);
-                AddUnique(multiNextGuideNode.NextServices, enterService);
-                EditorUtility.SetDirty(nextService);
-                return true;
-            }
-
             return false;
         }
 
         public bool TryClearFlowLink(string parentNodeId, string childNodeId)
         {
-            if (string.IsNullOrEmpty(parentNodeId) || string.IsNullOrEmpty(childNodeId))
-            {
-                return false;
-            }
-
-            Service childService = GetService(childNodeId);
-            if (childService is IGuideNode childGuideNode && childGuideNode.EnterId == parentNodeId)
-            {
-                Undo.RecordObject(childService, "Clear Guide Enter");
-                childGuideNode.EnterId = null;
-                childGuideNode.EnterService = null;
-                EditorUtility.SetDirty(childService);
-
-                Service parentService = GetService(parentNodeId);
-                if (parentService is INextServiceNode parentNextServiceNode && parentNextServiceNode.NextService == childService)
-                {
-                    Undo.RecordObject(parentService, "Clear Guide Next");
-                    parentNextServiceNode.NextService = null;
-                    EditorUtility.SetDirty(parentService);
-                }
-
-                if (parentService is IMultiNextServiceNode parentMultiNextServiceNode)
-                {
-                    Undo.RecordObject(parentService, "Clear Multi Guide Next");
-                    RemoveValue(parentMultiNextServiceNode.NextServices, childService);
-                    EditorUtility.SetDirty(parentService);
-                }
-
-                return true;
-            }
-
-            if (childService is IMultiGuideNode childMultiGuideNode && ContainsValue(childMultiGuideNode.EnterIds, parentNodeId))
-            {
-                Undo.RecordObject(childService, "Clear Guide Enter");
-                RemoveValue(childMultiGuideNode.EnterIds, parentNodeId);
-                RemoveValue(childMultiGuideNode.EnterServices, GetService(parentNodeId));
-                EditorUtility.SetDirty(childService);
-
-                Service parentService = GetService(parentNodeId);
-                if (parentService is INextServiceNode parentNextServiceNode && parentNextServiceNode.NextService == childService)
-                {
-                    Undo.RecordObject(parentService, "Clear Guide Next");
-                    parentNextServiceNode.NextService = null;
-                    EditorUtility.SetDirty(parentService);
-                }
-
-                if (parentService is IMultiNextServiceNode parentMultiNextServiceNode)
-                {
-                    Undo.RecordObject(parentService, "Clear Guide Next");
-                    RemoveValue(parentMultiNextServiceNode.NextServices, childService);
-                    EditorUtility.SetDirty(parentService);
-                }
-
-                return true;
-            }
-
-            Service parentGuideService = GetService(parentNodeId);
-            if (parentGuideService is IGuideNode parentGuideNode && parentGuideNode.NextId == childNodeId)
-            {
-                Undo.RecordObject(parentGuideService, "Clear Guide Next");
-                parentGuideNode.NextId = null;
-                parentGuideNode.NextService = null;
-                EditorUtility.SetDirty(parentGuideService);
-                return true;
-            }
-
-            if (parentGuideService is IMultiGuideNode parentMultiGuideNode && ContainsValue(parentMultiGuideNode.NextIds, childNodeId))
-            {
-                Undo.RecordObject(parentGuideService, "Clear Guide Next");
-                RemoveValue(parentMultiGuideNode.NextIds, childNodeId);
-                RemoveValue(parentMultiGuideNode.NextServices, GetService(childNodeId));
-                EditorUtility.SetDirty(parentGuideService);
-                return true;
-            }
-
             return false;
         }
 
         public bool TryGetGuideEnterIds(string nodeId, out List<string> enterIds)
         {
             enterIds = null;
-            Service service = GetService(nodeId);
-            if (service is IGuideNode singleGuideNode && !string.IsNullOrEmpty(singleGuideNode.EnterId))
-            {
-                enterIds = new List<string> { singleGuideNode.EnterId };
-                return true;
-            }
-
-            if (service is IMultiGuideNode multiGuideNode && multiGuideNode.EnterIds != null && multiGuideNode.EnterIds.Count > 0)
-            {
-                enterIds = multiGuideNode.EnterIds;
-                return true;
-            }
-
             return false;
         }
 
         public bool TryGetGuideNextIds(string nodeId, out List<string> nextIds)
         {
             nextIds = null;
-            Service service = GetService(nodeId);
-            if (service is IGuideNode singleGuideNode && !string.IsNullOrEmpty(singleGuideNode.NextId))
-            {
-                nextIds = new List<string> { singleGuideNode.NextId };
-                return true;
-            }
-
-            if (service is IMultiGuideNode multiGuideNode && multiGuideNode.NextIds != null && multiGuideNode.NextIds.Count > 0)
-            {
-                nextIds = multiGuideNode.NextIds;
-                return true;
-            }
-
             return false;
         }
 
@@ -943,28 +760,6 @@ namespace PlayableFramework.Editor
             return true;
         }
 
-        private static void EnsureGuideFlowDetached(string nextNodeId, string enterNodeId)
-        {
-            GameObject nextNodeObject;
-            GameObject enterNodeObject;
-            if (!GameObjectOperator.TryGetNodeObject(nextNodeId, out nextNodeObject) ||
-                !GameObjectOperator.TryGetNodeObject(enterNodeId, out enterNodeObject) ||
-                nextNodeObject == null ||
-                enterNodeObject == null)
-            {
-                return;
-            }
-
-            if (enterNodeObject.transform.parent == nextNodeObject.transform)
-            {
-                GameObjectOperator.MoveNodeToDefaultParent(enterNodeId);
-            }
-
-            if (nextNodeObject.transform.parent == enterNodeObject.transform)
-            {
-                GameObjectOperator.MoveNodeToDefaultParent(nextNodeId);
-            }
-        }
     }
 }
 
